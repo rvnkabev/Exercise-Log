@@ -3,12 +3,12 @@
 <head>
   <title>Exercise Logger</title>
   <style>
-    body { font-family: Arial; margin: 20px; }
-    .section { margin-bottom: 20px; }
+    body { font-family: Arial; margin: 20px; font-size: 3em; }
+    .section { margin-bottom: 40px; }
     button {
-      margin: 5px;
-      padding: 10px 15px;
-      font-size: 16px;
+      margin: 10px;
+      padding: 20px 30px;
+      font-size: 1em;
       cursor: pointer;
     }
     .hidden { display: none; }
@@ -18,67 +18,69 @@
 
   <h1>Exercise Logger</h1>
 
-  <!-- Step 1: Activity -->
+  <!-- Step 1: Choose Activity -->
   <div class="section">
-    <p><strong>What did you achieve?</strong></p>
+    <p><strong>1. What did you achieve?</strong></p>
     <button onclick="chooseActivity('Swim')">Swim</button>
     <button onclick="chooseActivity('Heavy Lift')">Heavy Lift</button>
   </div>
 
-  <!-- Swim: Duration (1~12) -->
+  <!-- Step 2A: Swim Reps -->
   <div class="section hidden" id="swimReps">
-    <p><strong>How many times? (Swim)</strong></p>
+    <p><strong>2. How many times did you swim?</strong></p>
     <div id="swimRepsButtons"></div>
   </div>
 
-  <!-- Heavy Lift: Part -->
+  <!-- Step 2B: Heavy Lift - Part -->
   <div class="section hidden" id="liftParts">
-    <p><strong>Which part?</strong></p>
+    <p><strong>2. Which part?</strong></p>
     <button onclick="choosePart('Chest')">Chest</button>
     <button onclick="choosePart('Back')">Back</button>
     <button onclick="choosePart('Abdominal')">Abdominal</button>
   </div>
 
-  <!-- Heavy Lift: Weight -->
-  <div class="section hidden" id="liftWeights">
-    <p><strong>How many weight? (kg)</strong></p>
-    <button onclick="chooseWeight(20)">20</button>
-    <button onclick="chooseWeight(40)">40</button>
-    <button onclick="chooseWeight(60)">60</button>
-    <button onclick="chooseWeight(80)">80</button>
-    <button onclick="chooseWeight(100)">100</button>
+  <!-- Step 3A: Chest Subtype -->
+  <div class="section hidden" id="chestSub">
+    <p><strong>Chest - Which area?</strong></p>
+    <button onclick="chooseSubPart('上胸')">上胸</button>
+    <button onclick="chooseSubPart('中胸')">中胸</button>
   </div>
 
-  <!-- Heavy Lift: Reps -->
-  <div class="section hidden" id="liftReps">
-    <p><strong>How many reps?</strong></p>
-    <div id="liftRepsButtons"></div>
+  <!-- Step 3B: Abdominal Subtype -->
+  <div class="section hidden" id="abSub">
+    <p><strong>Abdominal - Which movement?</strong></p>
+    <button onclick="chooseSubPart('Plank')">Plank</button>
+    <button onclick="chooseSubPart('Curling')">Curling</button>
   </div>
 
-  <!-- Result + Save -->
-  <div class="section" id="result"></div>
-  <button class="hidden" id="saveBtn" onclick="saveToNotes()">儲存到 iPhone Notes</button>
+  <!-- Step 4: Weight -->
+  <div class="section hidden" id="weightSelect">
+    <p><strong>3. Select weight (kg)</strong></p>
+    <div id="weightButtons"></div>
+  </div>
+
+  <!-- Step 5: Reps -->
+  <div class="section hidden" id="repSelect">
+    <p><strong>4. Select reps</strong></p>
+    <div id="repButtons"></div>
+  </div>
+
+  <!-- Step 6: Result & Save -->
+  <div class="section hidden" id="resultSection">
+    <p><strong>Result:</strong></p>
+    <div id="result"></div>
+    <button onclick="saveToNotes()">儲存到 iPhone Notes</button>
+  </div>
 
   <script>
     let log = {};
-
-    function createButtonGroup(containerId, callback) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = "";
-      for (let i = 1; i <= 12; i++) {
-        const btn = document.createElement("button");
-        btn.textContent = i;
-        btn.onclick = () => callback(i);
-        container.appendChild(btn);
-      }
-    }
 
     function chooseActivity(activity) {
       log = { activity };
       hideAll();
       if (activity === "Swim") {
         document.getElementById("swimReps").classList.remove("hidden");
-        createButtonGroup("swimRepsButtons", setSwimReps);
+        createNumberButtons("swimRepsButtons", 1, 12, setSwimReps);
       } else {
         document.getElementById("liftParts").classList.remove("hidden");
       }
@@ -86,55 +88,68 @@
 
     function setSwimReps(times) {
       log.reps = times;
-      showResult();
+      log.duration = times * 30;
+      showResult(`Swim ${times}x — Total: ${log.duration} mins`);
     }
 
     function choosePart(part) {
       log.part = part;
-      document.getElementById("liftWeights").classList.remove("hidden");
+      if (part === "Chest") {
+        document.getElementById("chestSub").classList.remove("hidden");
+      } else if (part === "Abdominal") {
+        document.getElementById("abSub").classList.remove("hidden");
+      } else {
+        document.getElementById("weightSelect").classList.remove("hidden");
+        createNumberButtons("weightButtons", 20, 100, chooseWeight, 20);
+      }
+    }
+
+    function chooseSubPart(sub) {
+      log.subPart = sub;
+      document.getElementById("weightSelect").classList.remove("hidden");
+      createNumberButtons("weightButtons", 20, 100, chooseWeight, 20);
     }
 
     function chooseWeight(weight) {
       log.weight = weight;
-      document.getElementById("liftReps").classList.remove("hidden");
-      createButtonGroup("liftRepsButtons", chooseReps);
+      document.getElementById("repSelect").classList.remove("hidden");
+      createNumberButtons("repButtons", 1, 12, chooseReps);
     }
 
     function chooseReps(reps) {
       log.reps = reps;
-      showResult();
+      let partText = log.subPart ? `${log.part} - ${log.subPart}` : log.part;
+      showResult(`${partText}, ${log.weight}kg × ${log.reps}`);
+    }
+
+    function showResult(summary) {
+      document.getElementById("result").innerHTML = summary;
+      document.getElementById("resultSection").classList.remove("hidden");
     }
 
     function hideAll() {
-      document.getElementById("swimReps").classList.add("hidden");
-      document.getElementById("liftParts").classList.add("hidden");
-      document.getElementById("liftWeights").classList.add("hidden");
-      document.getElementById("liftReps").classList.add("hidden");
-      document.getElementById("result").innerHTML = "";
-      document.getElementById("saveBtn").classList.add("hidden");
+      ["swimReps", "liftParts", "chestSub", "abSub", "weightSelect", "repSelect", "resultSection"]
+        .forEach(id => document.getElementById(id).classList.add("hidden"));
     }
 
-    function showResult() {
-      let html = "<h3>Logged Activity:</h3><ul>";
-      html += `<li>Activity: ${log.activity}</li>`;
-      if (log.activity === "Swim") {
-        html += `<li>Times: ${log.reps}</li>`;
-      } else {
-        html += `<li>Part: ${log.part}</li>`;
-        html += `<li>Weight: ${log.weight} kg</li>`;
-        html += `<li>Reps: ${log.reps}</li>`;
+    function createNumberButtons(containerId, start, end, callback, step = 1) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+      for (let i = start; i <= end; i += step) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        btn.onclick = () => callback(i);
+        container.appendChild(btn);
       }
-      html += "</ul>";
-      document.getElementById("result").innerHTML = html;
-      document.getElementById("saveBtn").classList.remove("hidden");
     }
 
     function saveToNotes() {
-      let content = `Activity Log:\nActivity: ${log.activity}`;
+      let content = "";
       if (log.activity === "Swim") {
-        content += `\nTimes: ${log.reps}`;
+        content = `Swim ${log.reps}x\nTotal: ${log.duration} mins`;
       } else {
-        content += `\nPart: ${log.part}\nWeight: ${log.weight} kg\nReps: ${log.reps}`;
+        const partText = log.subPart ? `${log.part} - ${log.subPart}` : log.part;
+        content = `Heavy Lift\nPart: ${partText}\nWeight: ${log.weight} kg\nReps: ${log.reps}`;
       }
       const encoded = encodeURIComponent(content);
       const shortcutURL = `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
