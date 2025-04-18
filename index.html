@@ -83,12 +83,12 @@
     function stepChestSub() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Chest - Which area?</strong><br><br>";
-      div.appendChild(createButton("上胸", () => {
-        log.subPart = "上胸";
+      div.appendChild(createButton("Upper Chest", () => {
+        log.subPart = "Upper Chest";
         stepLiftWeight();
       }));
-      div.appendChild(createButton("中胸", () => {
-        log.subPart = "中胸";
+      div.appendChild(createButton("Middle Chest", () => {
+        log.subPart = "Middle Chest";
         stepLiftWeight();
       }));
       renderStep(div);
