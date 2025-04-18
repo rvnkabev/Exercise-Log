@@ -4,157 +4,155 @@
   <title>Exercise Logger</title>
   <style>
     body { font-family: Arial; margin: 20px; font-size: 3em; }
-    .section { margin-bottom: 40px; }
+    .step { margin-bottom: 40px; }
     button {
       margin: 10px;
-      padding: 20px 30px;
+      padding: 30px 50px;
       font-size: 1em;
       cursor: pointer;
     }
-    .hidden { display: none; }
   </style>
 </head>
 <body>
 
   <h1>Exercise Logger</h1>
 
-  <!-- Step 1: Choose Activity -->
-  <div class="section">
-    <p><strong>1. What did you achieve?</strong></p>
-    <button onclick="chooseActivity('Swim')">Swim</button>
-    <button onclick="chooseActivity('Heavy Lift')">Heavy Lift</button>
-  </div>
-
-  <!-- Step 2A: Swim Reps -->
-  <div class="section hidden" id="swimReps">
-    <p><strong>2. How many times did you swim?</strong></p>
-    <div id="swimRepsButtons"></div>
-  </div>
-
-  <!-- Step 2B: Heavy Lift - Part -->
-  <div class="section hidden" id="liftParts">
-    <p><strong>2. Which part?</strong></p>
-    <button onclick="choosePart('Chest')">Chest</button>
-    <button onclick="choosePart('Back')">Back</button>
-    <button onclick="choosePart('Abdominal')">Abdominal</button>
-  </div>
-
-  <!-- Step 3A: Chest Subtype -->
-  <div class="section hidden" id="chestSub">
-    <p><strong>Chest - Which area?</strong></p>
-    <button onclick="chooseSubPart('上胸')">上胸</button>
-    <button onclick="chooseSubPart('中胸')">中胸</button>
-  </div>
-
-  <!-- Step 3B: Abdominal Subtype -->
-  <div class="section hidden" id="abSub">
-    <p><strong>Abdominal - Which movement?</strong></p>
-    <button onclick="chooseSubPart('Plank')">Plank</button>
-    <button onclick="chooseSubPart('Curling')">Curling</button>
-  </div>
-
-  <!-- Step 4: Weight -->
-  <div class="section hidden" id="weightSelect">
-    <p><strong>3. Select weight (kg)</strong></p>
-    <div id="weightButtons"></div>
-  </div>
-
-  <!-- Step 5: Reps -->
-  <div class="section hidden" id="repSelect">
-    <p><strong>4. Select reps</strong></p>
-    <div id="repButtons"></div>
-  </div>
-
-  <!-- Step 6: Result & Save -->
-  <div class="section hidden" id="resultSection">
-    <p><strong>Result:</strong></p>
-    <div id="result"></div>
-    <button onclick="saveToNotes()">儲存到 iPhone Notes</button>
-  </div>
+  <div id="stepContainer" class="step"></div>
 
   <script>
     let log = {};
+    const stepContainer = document.getElementById("stepContainer");
 
-    function chooseActivity(activity) {
-      log = { activity };
-      hideAll();
-      if (activity === "Swim") {
-        document.getElementById("swimReps").classList.remove("hidden");
-        createNumberButtons("swimRepsButtons", 1, 12, setSwimReps);
-      } else {
-        document.getElementById("liftParts").classList.remove("hidden");
+    function renderStep(content) {
+      stepContainer.innerHTML = ""; // 清除前一步
+      stepContainer.appendChild(content);
+    }
+
+    function createButton(text, onClick) {
+      const btn = document.createElement("button");
+      btn.textContent = text;
+      btn.onclick = onClick;
+      return btn;
+    }
+
+    function start() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>1. What did you achieve?</strong><br><br>";
+      div.appendChild(createButton("Swim", () => {
+        log.activity = "Swim";
+        stepSwimReps();
+      }));
+      div.appendChild(createButton("Heavy Lift", () => {
+        log.activity = "Heavy Lift";
+        stepLiftPart();
+      }));
+      renderStep(div);
+    }
+
+    function stepSwimReps() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>2. How many times?</strong><br><br>";
+      for (let i = 1; i <= 12; i++) {
+        div.appendChild(createButton(i, () => {
+          log.reps = i;
+          log.summary = `${i}x 30M`;
+          showResult();
+        }));
       }
+      renderStep(div);
     }
 
-    function setSwimReps(times) {
-      log.reps = times;
-      log.duration = times * 30;
-      showResult(`Swim ${times}x — Total: ${log.duration} mins`);
+    function stepLiftPart() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>2. Which part?</strong><br><br>";
+      div.appendChild(createButton("Chest", () => {
+        log.part = "Chest";
+        stepChestSub();
+      }));
+      div.appendChild(createButton("Back", () => {
+        log.part = "Back";
+        stepLiftWeight();
+      }));
+      div.appendChild(createButton("Abdominal", () => {
+        log.part = "Abdominal";
+        stepAbSub();
+      }));
+      renderStep(div);
     }
 
-    function choosePart(part) {
-      log.part = part;
-      if (part === "Chest") {
-        document.getElementById("chestSub").classList.remove("hidden");
-      } else if (part === "Abdominal") {
-        document.getElementById("abSub").classList.remove("hidden");
-      } else {
-        document.getElementById("weightSelect").classList.remove("hidden");
-        createNumberButtons("weightButtons", 20, 100, chooseWeight, 20);
+    function stepChestSub() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Chest - Which area?</strong><br><br>";
+      div.appendChild(createButton("上胸", () => {
+        log.subPart = "上胸";
+        stepLiftWeight();
+      }));
+      div.appendChild(createButton("中胸", () => {
+        log.subPart = "中胸";
+        stepLiftWeight();
+      }));
+      renderStep(div);
+    }
+
+    function stepAbSub() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Abdominal - Which movement?</strong><br><br>";
+      div.appendChild(createButton("Plank", () => {
+        log.subPart = "Plank";
+        stepLiftReps();
+      }));
+      div.appendChild(createButton("Curling", () => {
+        log.subPart = "Curling";
+        stepLiftReps();
+      }));
+      renderStep(div);
+    }
+
+    function stepLiftWeight() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>3. Select weight (kg)</strong><br><br>";
+      for (let i = 20; i <= 100; i += 20) {
+        div.appendChild(createButton(i, () => {
+          log.weight = i;
+          stepLiftReps();
+        }));
       }
+      renderStep(div);
     }
 
-    function chooseSubPart(sub) {
-      log.subPart = sub;
-      document.getElementById("weightSelect").classList.remove("hidden");
-      createNumberButtons("weightButtons", 20, 100, chooseWeight, 20);
-    }
-
-    function chooseWeight(weight) {
-      log.weight = weight;
-      document.getElementById("repSelect").classList.remove("hidden");
-      createNumberButtons("repButtons", 1, 12, chooseReps);
-    }
-
-    function chooseReps(reps) {
-      log.reps = reps;
-      let partText = log.subPart ? `${log.part} - ${log.subPart}` : log.part;
-      showResult(`${partText}, ${log.weight}kg × ${log.reps}`);
-    }
-
-    function showResult(summary) {
-      document.getElementById("result").innerHTML = summary;
-      document.getElementById("resultSection").classList.remove("hidden");
-    }
-
-    function hideAll() {
-      ["swimReps", "liftParts", "chestSub", "abSub", "weightSelect", "repSelect", "resultSection"]
-        .forEach(id => document.getElementById(id).classList.add("hidden"));
-    }
-
-    function createNumberButtons(containerId, start, end, callback, step = 1) {
-      const container = document.getElementById(containerId);
-      container.innerHTML = "";
-      for (let i = start; i <= end; i += step) {
-        const btn = document.createElement("button");
-        btn.textContent = i;
-        btn.onclick = () => callback(i);
-        container.appendChild(btn);
+    function stepLiftReps() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>4. Select reps</strong><br><br>";
+      for (let i = 1; i <= 12; i++) {
+        div.appendChild(createButton(i, () => {
+          log.reps = i;
+          const part = log.subPart ? `${log.part} - ${log.subPart}` : log.part;
+          if (log.part === "Abdominal") {
+            log.summary = `${part}, ${log.reps}x`;
+          } else {
+            log.summary = `${part}, ${log.weight}kg × ${log.reps}`;
+          }
+          showResult();
+        }));
       }
+      renderStep(div);
+    }
+
+    function showResult() {
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>Result:</strong><br><br>${log.summary}<br><br>`;
+      const saveBtn = createButton("儲存到 iPhone Notes", saveToNotes);
+      div.appendChild(saveBtn);
+      renderStep(div);
     }
 
     function saveToNotes() {
-      let content = "";
-      if (log.activity === "Swim") {
-        content = `Swim ${log.reps}x\nTotal: ${log.duration} mins`;
-      } else {
-        const partText = log.subPart ? `${log.part} - ${log.subPart}` : log.part;
-        content = `Heavy Lift\nPart: ${partText}\nWeight: ${log.weight} kg\nReps: ${log.reps}`;
-      }
-      const encoded = encodeURIComponent(content);
+      const encoded = encodeURIComponent(log.summary);
       const shortcutURL = `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
       window.location.href = shortcutURL;
     }
+
+    start(); // 開始第一步
   </script>
 
 </body>
