@@ -16,7 +16,6 @@
 <body>
 
   <h1>Exercise Logger</h1>
-
   <div id="stepContainer" class="step"></div>
 
   <script>
@@ -24,7 +23,7 @@
     const stepContainer = document.getElementById("stepContainer");
 
     function renderStep(content) {
-      stepContainer.innerHTML = ""; // 清除前一步
+      stepContainer.innerHTML = "";
       stepContainer.appendChild(content);
     }
 
@@ -46,12 +45,16 @@
         log.activity = "Heavy Lift";
         stepLiftPart();
       }));
+      div.appendChild(createButton("Leg", () => {
+        log.activity = "Leg";
+        stepLegType();
+      }));
       renderStep(div);
     }
 
     function stepSwimReps() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>2. How many times?</strong><br><br>";
+      div.innerHTML = "<strong>2. How many times? (Swim)</strong><br><br>";
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = i;
@@ -64,14 +67,14 @@
 
     function stepLiftPart() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>2. Which part?</strong><br><br>";
+      div.innerHTML = "<strong>2. Which part? (Heavy Lift)</strong><br><br>";
       div.appendChild(createButton("Chest", () => {
         log.part = "Chest";
         stepChestSub();
       }));
       div.appendChild(createButton("Back", () => {
         log.part = "Back";
-        stepLiftWeight();
+        stepLiftWeight(20);
       }));
       div.appendChild(createButton("Abdominal", () => {
         log.part = "Abdominal";
@@ -85,11 +88,11 @@
       div.innerHTML = "<strong>Chest - Which area?</strong><br><br>";
       div.appendChild(createButton("Upper Chest", () => {
         log.subPart = "Upper Chest";
-        stepLiftWeight();
+        stepLiftWeight(20);
       }));
       div.appendChild(createButton("Middle Chest", () => {
         log.subPart = "Middle Chest";
-        stepLiftWeight();
+        stepLiftWeight(20);
       }));
       renderStep(div);
     }
@@ -108,10 +111,10 @@
       renderStep(div);
     }
 
-    function stepLiftWeight() {
+    function stepLiftWeight(minWeight) {
       const div = document.createElement("div");
       div.innerHTML = "<strong>3. Select weight (kg)</strong><br><br>";
-      for (let i = 20; i <= 100; i += 20) {
+      for (let i = minWeight; i <= 100; i += 20) {
         div.appendChild(createButton(i, () => {
           log.weight = i;
           stepLiftReps();
@@ -138,6 +141,59 @@
       renderStep(div);
     }
 
+    function stepLegType() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>2. What type of leg activity?</strong><br><br>";
+      div.appendChild(createButton("Stretch", () => {
+        log.summary = "Leg - Stretch";
+        showResult();
+      }));
+      div.appendChild(createButton("Exercise", () => {
+        log.part = "Leg - Exercise";
+        stepLegPart();
+      }));
+      renderStep(div);
+    }
+
+    function stepLegPart() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>3. Which part?</strong><br><br>";
+      div.appendChild(createButton("Gluteus", () => {
+        log.subPart = "Gluteus";
+        stepLegWeight();
+      }));
+      div.appendChild(createButton("Quadriceps", () => {
+        log.subPart = "Quadriceps";
+        stepLegWeight();
+      }));
+      renderStep(div);
+    }
+
+    function stepLegWeight() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>4. Select weight (kg)</strong><br><br>";
+      for (let i = 10; i <= 50; i += 10) {
+        div.appendChild(createButton(i, () => {
+          log.weight = i;
+          stepLegReps();
+        }));
+      }
+      renderStep(div);
+    }
+
+    function stepLegReps() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>5. Select reps</strong><br><br>";
+      for (let i = 1; i <= 12; i++) {
+        div.appendChild(createButton(i, () => {
+          log.reps = i;
+          log.summary = `${log.part} - ${log.subPart}, ${log.weight}kg × ${log.reps}`;
+          showResult();
+        }));
+      }
+      renderStep(div);
+    }
+
     function showResult() {
       const div = document.createElement("div");
       div.innerHTML = `<strong>Result:</strong><br><br>${log.summary}<br><br>`;
@@ -152,7 +208,7 @@
       window.location.href = shortcutURL;
     }
 
-    start(); // 開始第一步
+    start(); // 起始第一步
   </script>
 
 </body>
