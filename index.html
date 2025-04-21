@@ -13,6 +13,11 @@
       font-size: 1em;
       cursor: pointer;
     }
+    .save-button {
+      font-size: 1em;
+      padding: 30px 50px;
+      margin-top: 30px;
+    }
   </style>
 </head>
 <body>
@@ -88,7 +93,7 @@
       div.innerHTML = "<strong>Chest - Which area?</strong><br><br>";
       div.appendChild(createButtonGroup(["Upper Chest", "Middle Chest"], area => {
         log.subPart = area;
-        if (area === "Upper Chest") stepLiftWeight(20);
+        if (area === "Upper Chest") stepEvenWeightOnly();
         else stepMiddleChestWeight();
       }));
       renderStep(div);
@@ -130,11 +135,13 @@
       renderStep(div);
     }
 
-    function stepLiftWeight(minWeight) {
+    function stepEvenWeightOnly() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>3. Select weight (kg)</strong><br><br>";
+      div.innerHTML = "<strong>3. Select weight (2–30kg, even only)</strong><br><br>";
       const weights = [];
-      for (let i = minWeight; i <= 100; i += 20) weights.push(i);
+      for (let i = 2; i <= 30; i += 2) {
+        weights.push(i);
+      }
       div.appendChild(createButtonGroup(weights, weight => {
         log.weight = weight;
         stepLiftReps();
@@ -176,28 +183,21 @@
       div.innerHTML = "<strong>3. Which part?</strong><br><br>";
       div.appendChild(createButtonGroup(["Gluteus", "Quadriceps"], part => {
         log.subPart = part;
-        stepLegWeight();
+        stepLegEvenWeight();
       }));
       renderStep(div);
     }
 
-    function stepLegWeight() {
+    function stepLegEvenWeight() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>4. Select weight (kg)</strong><br><br>";
-      const weights = [10, 20, 30, 40, 50];
+      div.innerHTML = "<strong>4. Select weight (2–30kg)</strong><br><br>";
+      const weights = [];
+      for (let i = 2; i <= 30; i += 2) {
+        weights.push(i);
+      }
       div.appendChild(createButtonGroup(weights, weight => {
         log.weight = weight;
-        stepLegReps();
-      }));
-      renderStep(div);
-    }
-
-    function stepLegReps() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>5. Select reps</strong><br><br>";
-      div.appendChild(createButtonGroup([...Array(12)].map((_, i) => i + 1), reps => {
-        log.reps = reps;
-        log.summary = `${log.part} - ${log.subPart}, ${log.weight}kg × ${log.reps}`;
+        log.summary = `${log.part} - ${log.subPart}, ${log.weight}kg`;
         showResult();
       }));
       renderStep(div);
@@ -206,7 +206,11 @@
     function showResult() {
       const div = document.createElement("div");
       div.innerHTML = `<strong>Result:</strong><br><br>${log.summary}<br><br>`;
-      div.appendChild(createButton("儲存到 iPhone Notes", saveToNotes));
+      const saveBtn = document.createElement("button");
+      saveBtn.textContent = "儲存到 iPhone Notes";
+      saveBtn.className = "save-button";
+      saveBtn.onclick = saveToNotes;
+      div.appendChild(saveBtn);
       renderStep(div);
     }
 
