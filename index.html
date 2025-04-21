@@ -5,7 +5,9 @@
   <style>
     body { font-family: Arial; margin: 20px; font-size: 3em; }
     .step { margin-bottom: 40px; }
-    button {
+    .button-group { margin-top: 20px; }
+    .button-group button {
+      display: inline-block;
       margin: 10px;
       padding: 30px 50px;
       font-size: 1em;
@@ -34,20 +36,25 @@
       return btn;
     }
 
+    function createButtonGroup(items, onClick) {
+      const group = document.createElement("div");
+      group.className = "button-group";
+      items.forEach(item => {
+        const btn = createButton(item, () => onClick(item));
+        group.appendChild(btn);
+      });
+      return group;
+    }
+
     function start() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>1. What did you achieve?</strong><br><br>";
-      div.appendChild(createButton("Swim", () => {
-        log.activity = "Swim";
-        stepSwimReps();
-      }));
-      div.appendChild(createButton("Heavy Lift", () => {
-        log.activity = "Heavy Lift";
-        stepLiftPart();
-      }));
-      div.appendChild(createButton("Leg", () => {
-        log.activity = "Leg";
-        stepLegType();
+      const options = ["Swim", "Heavy Lift", "Leg"];
+      div.appendChild(createButtonGroup(options, choice => {
+        log.activity = choice;
+        if (choice === "Swim") stepSwimReps();
+        else if (choice === "Heavy Lift") stepLiftPart();
+        else stepLegType();
       }));
       renderStep(div);
     }
@@ -55,30 +62,23 @@
     function stepSwimReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>2. How many times? (Swim)</strong><br><br>";
-      for (let i = 1; i <= 12; i++) {
-        div.appendChild(createButton(i, () => {
-          log.reps = i;
-          log.summary = `${i}x 30M`;
-          showResult();
-        }));
-      }
+      div.appendChild(createButtonGroup([...Array(12)].map((_, i) => i + 1), i => {
+        log.reps = i;
+        log.summary = `${i}x 30M`;
+        showResult();
+      }));
       renderStep(div);
     }
 
     function stepLiftPart() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>2. Which part? (Heavy Lift)</strong><br><br>";
-      div.appendChild(createButton("Chest", () => {
-        log.part = "Chest";
-        stepChestSub();
-      }));
-      div.appendChild(createButton("Back", () => {
-        log.part = "Back";
-        stepBackWeight();
-      }));
-      div.appendChild(createButton("Abdominal", () => {
-        log.part = "Abdominal";
-        stepAbSub();
+      const options = ["Chest", "Back", "Abdominal"];
+      div.appendChild(createButtonGroup(options, part => {
+        log.part = part;
+        if (part === "Chest") stepChestSub();
+        else if (part === "Back") stepBackWeight();
+        else stepAbSub();
       }));
       renderStep(div);
     }
@@ -86,13 +86,10 @@
     function stepChestSub() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Chest - Which area?</strong><br><br>";
-      div.appendChild(createButton("Upper Chest", () => {
-        log.subPart = "Upper Chest";
-        stepLiftWeight(20);
-      }));
-      div.appendChild(createButton("Middle Chest", () => {
-        log.subPart = "Middle Chest";
-        stepMiddleChestWeight();
+      div.appendChild(createButtonGroup(["Upper Chest", "Middle Chest"], area => {
+        log.subPart = area;
+        if (area === "Upper Chest") stepLiftWeight(20);
+        else stepMiddleChestWeight();
       }));
       renderStep(div);
     }
@@ -101,15 +98,14 @@
       const div = document.createElement("div");
       div.innerHTML = "<strong>3. Select weight (Middle Chest)</strong><br><br>";
       const weights = [
-        1.1, 3.4, 5.7, 7.9, 10.2, 12.5, 14.7, 17.0,
-        19.3, 21.6, 23.8, 26.1, 28.4, 30.6, 32.9
+        1.1, 3.4, 5.7, 7.9, 10.2, 12.5, 14.7,
+        17.0, 19.3, 21.6, 23.8, 26.1, 28.4, 30.6, 32.9
       ];
-      weights.forEach(w => {
-        div.appendChild(createButton(`${w}×2`, () => {
-          log.weight = `${w}×2`;
-          stepLiftReps();
-        }));
-      });
+      const labels = weights.map(w => `${w}×2`);
+      div.appendChild(createButtonGroup(labels, label => {
+        log.weight = label;
+        stepLiftReps();
+      }));
       renderStep(div);
     }
 
@@ -117,24 +113,18 @@
       const div = document.createElement("div");
       div.innerHTML = "<strong>3. Select weight (Back)</strong><br><br>";
       const weights = [7, 14, 21, 28, 33, 42, 49, 56, 63, 70, 77, 84, 91];
-      weights.forEach(w => {
-        div.appendChild(createButton(`${w}`, () => {
-          log.weight = w;
-          stepLiftReps();
-        }));
-      });
+      div.appendChild(createButtonGroup(weights, weight => {
+        log.weight = weight;
+        stepLiftReps();
+      }));
       renderStep(div);
     }
 
     function stepAbSub() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Abdominal - Which movement?</strong><br><br>";
-      div.appendChild(createButton("Plank", () => {
-        log.subPart = "Plank";
-        stepLiftReps();
-      }));
-      div.appendChild(createButton("Curling", () => {
-        log.subPart = "Curling";
+      div.appendChild(createButtonGroup(["Plank", "Curling"], move => {
+        log.subPart = move;
         stepLiftReps();
       }));
       renderStep(div);
@@ -143,43 +133,40 @@
     function stepLiftWeight(minWeight) {
       const div = document.createElement("div");
       div.innerHTML = "<strong>3. Select weight (kg)</strong><br><br>";
-      for (let i = minWeight; i <= 100; i += 20) {
-        div.appendChild(createButton(i, () => {
-          log.weight = i;
-          stepLiftReps();
-        }));
-      }
+      const weights = [];
+      for (let i = minWeight; i <= 100; i += 20) weights.push(i);
+      div.appendChild(createButtonGroup(weights, weight => {
+        log.weight = weight;
+        stepLiftReps();
+      }));
       renderStep(div);
     }
 
     function stepLiftReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>4. Select reps</strong><br><br>";
-      for (let i = 1; i <= 12; i++) {
-        div.appendChild(createButton(i, () => {
-          log.reps = i;
-          const part = log.subPart ? `${log.part} - ${log.subPart}` : log.part;
-          if (log.part === "Abdominal") {
-            log.summary = `${part}, ${log.reps}x`;
-          } else {
-            log.summary = `${part}, ${log.weight}kg × ${log.reps}`;
-          }
-          showResult();
-        }));
-      }
+      div.appendChild(createButtonGroup([...Array(12)].map((_, i) => i + 1), reps => {
+        log.reps = reps;
+        const part = log.subPart ? `${log.part} - ${log.subPart}` : log.part;
+        log.summary = log.part === "Abdominal"
+          ? `${part}, ${log.reps}x`
+          : `${part}, ${log.weight}kg × ${log.reps}`;
+        showResult();
+      }));
       renderStep(div);
     }
 
     function stepLegType() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>2. What type of leg activity?</strong><br><br>";
-      div.appendChild(createButton("Stretch", () => {
-        log.summary = "Leg - Stretch";
-        showResult();
-      }));
-      div.appendChild(createButton("Exercise", () => {
-        log.part = "Leg - Exercise";
-        stepLegPart();
+      div.appendChild(createButtonGroup(["Stretch", "Exercise"], type => {
+        if (type === "Stretch") {
+          log.summary = "Leg - Stretch";
+          showResult();
+        } else {
+          log.part = "Leg - Exercise";
+          stepLegPart();
+        }
       }));
       renderStep(div);
     }
@@ -187,12 +174,8 @@
     function stepLegPart() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>3. Which part?</strong><br><br>";
-      div.appendChild(createButton("Gluteus", () => {
-        log.subPart = "Gluteus";
-        stepLegWeight();
-      }));
-      div.appendChild(createButton("Quadriceps", () => {
-        log.subPart = "Quadriceps";
+      div.appendChild(createButtonGroup(["Gluteus", "Quadriceps"], part => {
+        log.subPart = part;
         stepLegWeight();
       }));
       renderStep(div);
@@ -201,33 +184,29 @@
     function stepLegWeight() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>4. Select weight (kg)</strong><br><br>";
-      for (let i = 10; i <= 50; i += 10) {
-        div.appendChild(createButton(i, () => {
-          log.weight = i;
-          stepLegReps();
-        }));
-      }
+      const weights = [10, 20, 30, 40, 50];
+      div.appendChild(createButtonGroup(weights, weight => {
+        log.weight = weight;
+        stepLegReps();
+      }));
       renderStep(div);
     }
 
     function stepLegReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>5. Select reps</strong><br><br>";
-      for (let i = 1; i <= 12; i++) {
-        div.appendChild(createButton(i, () => {
-          log.reps = i;
-          log.summary = `${log.part} - ${log.subPart}, ${log.weight}kg × ${log.reps}`;
-          showResult();
-        }));
-      }
+      div.appendChild(createButtonGroup([...Array(12)].map((_, i) => i + 1), reps => {
+        log.reps = reps;
+        log.summary = `${log.part} - ${log.subPart}, ${log.weight}kg × ${log.reps}`;
+        showResult();
+      }));
       renderStep(div);
     }
 
     function showResult() {
       const div = document.createElement("div");
       div.innerHTML = `<strong>Result:</strong><br><br>${log.summary}<br><br>`;
-      const saveBtn = createButton("儲存到 iPhone Notes", saveToNotes);
-      div.appendChild(saveBtn);
+      div.appendChild(createButton("儲存到 iPhone Notes", saveToNotes));
       renderStep(div);
     }
 
