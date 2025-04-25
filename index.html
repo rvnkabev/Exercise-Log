@@ -173,13 +173,13 @@
       div.appendChild(createButton("Gluteus", () => {
         log.part = "Glutes";
         log.exercise = "Gluteus";
-        log.equipment = "Machine";
+        log.equipment = "Dumbbell";
         stepWeight(generateRange(2, 20, 2, "kg"));
       }));
       div.appendChild(createButton("Quadriceps", () => {
         log.part = "Legs";
         log.exercise = "Quadriceps";
-        log.equipment = "Machine";
+        log.equipment = "Dumbbell";
         stepWeight(generateRange(2, 20, 2, "kg"));
       }));
       renderStep(div);
@@ -210,7 +210,7 @@
       div.innerHTML = "<strong>Reps</strong><br><br>";
       for (let i = 4; i <= 15; i++) {
         div.appendChild(createButton(i, () => {
-          log.reps = i;
+          log.reps = `${i} reps`;
           stepSets();
         }));
       }
@@ -222,7 +222,7 @@
       div.innerHTML = "<strong>Sets</strong><br><br>";
       for (let i = 1; i <= 5; i++) {
         div.appendChild(createButton(i, () => {
-          log.sets = i;
+          log.sets = `${i} sets`;
           stepNotes();
         }));
       }
