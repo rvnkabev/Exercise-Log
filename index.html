@@ -3,20 +3,27 @@
 <head>
   <title>Exercise Logger</title>
   <style>
-    body { font-family: Arial; margin: 20px; font-size: 3em; }
+    body { font-family: Arial; margin: 20px; font-size: 2.2em; }
     .step { margin-bottom: 40px; }
-    .button-group { margin-top: 20px; }
-    .button-group button {
-      display: inline-block;
+    button {
       margin: 10px;
-      padding: 30px 50px;
+      padding: 25px 45px;
       font-size: 1em;
       cursor: pointer;
     }
-    .save-button {
-      font-size: 1em;
-      padding: 30px 50px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
       margin-top: 30px;
+      font-size: 0.6em;
+    }
+    th, td {
+      border: 1px solid #888;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #eee;
     }
   </style>
 </head>
@@ -24,10 +31,18 @@
 
   <h1>Exercise Logger</h1>
   <div id="stepContainer" class="step"></div>
+  <div id="logTableContainer"></div>
 
   <script>
     let log = {};
+    const logs = [];
     const stepContainer = document.getElementById("stepContainer");
+    const logTableContainer = document.getElementById("logTableContainer");
+
+    function getToday() {
+      const d = new Date();
+      return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+    }
 
     function renderStep(content) {
       stepContainer.innerHTML = "";
@@ -41,183 +56,167 @@
       return btn;
     }
 
-    function createButtonGroup(items, onClick) {
-      const group = document.createElement("div");
-      group.className = "button-group";
-      items.forEach(item => {
-        const btn = createButton(item, () => onClick(item));
-        group.appendChild(btn);
-      });
-      return group;
-    }
-
     function start() {
+      log = {
+        date: getToday(),
+        weight: "—",
+        reps: "—",
+        sets: "—",
+        notes: ""
+      };
       const div = document.createElement("div");
-      div.innerHTML = "<strong>1. What did you achieve?</strong><br><br>";
-      const options = ["Swim", "Heavy Lift", "Leg"];
-      div.appendChild(createButtonGroup(options, choice => {
-        log.activity = choice;
-        if (choice === "Swim") stepSwimReps();
-        else if (choice === "Heavy Lift") stepLiftPart();
-        else stepLegType();
+      div.innerHTML = "<strong>1. 運動類型</strong><br><br>";
+      div.appendChild(createButton("游泳", () => {
+        log.part = "游泳";
+        log.exercise = "—";
+        log.equipment = "水池";
+        stepSwim();
+      }));
+      div.appendChild(createButton("重量訓練", () => {
+        stepBodyPart();
       }));
       renderStep(div);
     }
 
-    function stepSwimReps() {
+    function stepSwim() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>2. How many times? (Swim)</strong><br><br>";
-      div.appendChild(createButtonGroup([...Array(12)].map((_, i) => i + 1), i => {
-        log.reps = i;
-        log.summary = `${i}x 30M`;
-        showResult();
-      }));
-      renderStep(div);
-    }
-
-    function stepLiftPart() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>2. Which part? (Heavy Lift)</strong><br><br>";
-      const options = ["Chest", "Back", "Abdominal"];
-      div.appendChild(createButtonGroup(options, part => {
-        log.part = part;
-        if (part === "Chest") stepChestSub();
-        else if (part === "Back") stepBackWeight();
-        else stepAbSub();
-      }));
-      renderStep(div);
-    }
-
-    function stepChestSub() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>Chest - Which area?</strong><br><br>";
-      div.appendChild(createButtonGroup(["Upper Chest", "Middle Chest"], area => {
-        log.subPart = area;
-        if (area === "Upper Chest") stepEvenWeightOnly();
-        else stepMiddleChestWeight();
-      }));
-      renderStep(div);
-    }
-
-    function stepMiddleChestWeight() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>3. Select weight (Middle Chest)</strong><br><br>";
-      const weights = [
-        1.1, 3.4, 5.7, 7.9, 10.2, 12.5, 14.7,
-        17.0, 19.3, 21.6, 23.8, 26.1, 28.4, 30.6, 32.9
-      ];
-      const labels = weights.map(w => `${w}×2`);
-      div.appendChild(createButtonGroup(labels, label => {
-        log.weight = label;
-        stepLiftReps();
-      }));
-      renderStep(div);
-    }
-
-    function stepBackWeight() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>3. Select weight (Back)</strong><br><br>";
-      const weights = [7, 14, 21, 28, 33, 42, 49, 56, 63, 70, 77, 84, 91];
-      div.appendChild(createButtonGroup(weights, weight => {
-        log.weight = weight;
-        stepLiftReps();
-      }));
-      renderStep(div);
-    }
-
-    function stepAbSub() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>Abdominal - Which movement?</strong><br><br>";
-      div.appendChild(createButtonGroup(["Plank", "Curling"], move => {
-        log.subPart = move;
-        stepLiftReps();
-      }));
-      renderStep(div);
-    }
-
-    function stepEvenWeightOnly() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>3. Select weight (2–30kg, even only)</strong><br><br>";
-      const weights = [];
-      for (let i = 2; i <= 30; i += 2) {
-        weights.push(i);
+      div.innerHTML = "<strong>次數與組數（30m/次）</strong><br><br>";
+      for (let i = 1; i <= 12; i++) {
+        div.appendChild(createButton(i, () => {
+          log.reps = "30m";
+          log.sets = i;
+          finalizeLog();
+        }));
       }
-      div.appendChild(createButtonGroup(weights, weight => {
-        log.weight = weight;
-        stepLiftReps();
+      renderStep(div);
+    }
+
+    function stepBodyPart() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>部位</strong><br><br>";
+      div.appendChild(createButton("胸", () => {
+        log.part = "胸";
+        stepChestType();
+      }));
+      div.appendChild(createButton("腿臀", () => {
+        log.part = "腿臀";
+        log.exercise = "Gluteus";
+        log.equipment = "Machine";
+        stepWeight();
+      }));
+      div.appendChild(createButton("腿", () => {
+        log.part = "腿";
+        log.exercise = "Quadriceps";
+        log.equipment = "Machine";
+        stepWeight();
       }));
       renderStep(div);
     }
 
-    function stepLiftReps() {
+    function stepChestType() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>4. Select reps</strong><br><br>";
-      div.appendChild(createButtonGroup([...Array(12)].map((_, i) => i + 1), reps => {
-        log.reps = reps;
-        const part = log.subPart ? `${log.part} - ${log.subPart}` : log.part;
-        log.summary = log.part === "Abdominal"
-          ? `${part}, ${log.reps}x`
-          : `${part}, ${log.weight}kg × ${log.reps}`;
-        showResult();
+      div.innerHTML = "<strong>胸部動作</strong><br><br>";
+      div.appendChild(createButton("Middle Chest", () => {
+        log.exercise = "Middle Chest";
+        log.equipment = "Dumbbell";
+        stepWeight();
+      }));
+      div.appendChild(createButton("Upper Chest", () => {
+        log.exercise = "Upper Chest";
+        log.equipment = "Dumbbell";
+        stepWeight();
       }));
       renderStep(div);
     }
 
-    function stepLegType() {
+    function stepWeight() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>2. What type of leg activity?</strong><br><br>";
-      div.appendChild(createButtonGroup(["Stretch", "Exercise"], type => {
-        if (type === "Stretch") {
-          log.summary = "Leg - Stretch";
-          showResult();
-        } else {
-          log.part = "Leg - Exercise";
-          stepLegPart();
-        }
-      }));
+      div.innerHTML = "<strong>重量（單邊）</strong><br><br>";
+      const weights = ["8kg", "10kg", "12kg", "14kg", "16kg", "20kg", "24kg", "28.4kg", "30kg"];
+      weights.forEach(w => {
+        div.appendChild(createButton(w, () => {
+          log.weight = w;
+          stepReps();
+        }));
+      });
       renderStep(div);
     }
 
-    function stepLegPart() {
+    function stepReps() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>3. Which part?</strong><br><br>";
-      div.appendChild(createButtonGroup(["Gluteus", "Quadriceps"], part => {
-        log.subPart = part;
-        stepLegEvenWeight();
-      }));
-      renderStep(div);
-    }
-
-    function stepLegEvenWeight() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>4. Select weight (2–30kg)</strong><br><br>";
-      const weights = [];
-      for (let i = 2; i <= 30; i += 2) {
-        weights.push(i);
+      div.innerHTML = "<strong>次數</strong><br><br>";
+      for (let i = 4; i <= 15; i++) {
+        div.appendChild(createButton(i, () => {
+          log.reps = i;
+          stepSets();
+        }));
       }
-      div.appendChild(createButtonGroup(weights, weight => {
-        log.weight = weight;
-        log.summary = `${log.part} - ${log.subPart}, ${log.weight}kg`;
-        showResult();
-      }));
       renderStep(div);
     }
 
-    function showResult() {
+    function stepSets() {
       const div = document.createElement("div");
-      div.innerHTML = `<strong>Result:</strong><br><br>${log.summary}<br><br>`;
-      const saveBtn = document.createElement("button");
-      saveBtn.textContent = "儲存到 iPhone Notes";
-      saveBtn.className = "save-button";
-      saveBtn.onclick = saveToNotes;
-      div.appendChild(saveBtn);
+      div.innerHTML = "<strong>組數</strong><br><br>";
+      for (let i = 1; i <= 5; i++) {
+        div.appendChild(createButton(i, () => {
+          log.sets = i;
+          stepNotes();
+        }));
+      }
       renderStep(div);
     }
 
-    function saveToNotes() {
-      const encoded = encodeURIComponent(log.summary);
+    function stepNotes() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>備註（可留空）</strong><br><br>";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.style.fontSize = "1em";
+      input.style.width = "90%";
+      input.placeholder = "例如：中間4次用30kg";
+      input.onchange = () => log.notes = input.value;
+      div.appendChild(input);
+      div.appendChild(document.createElement("br"));
+      div.appendChild(createButton("完成", finalizeLog));
+      renderStep(div);
+    }
+
+    function finalizeLog() {
+      logs.push({ ...log });
+      renderTable();
+      start();
+    }
+
+    function renderTable() {
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <tr>
+          <th>日期</th><th>部位</th><th>動作</th><th>器材</th>
+          <th>重量（單邊）</th><th>次數</th><th>組數</th><th>備註</th>
+        </tr>
+        ${logs.map(e => `
+          <tr>
+            <td>${e.date}</td>
+            <td>${e.part}</td>
+            <td>${e.exercise}</td>
+            <td>${e.equipment}</td>
+            <td>${e.weight}</td>
+            <td>${e.reps}</td>
+            <td>${e.sets}</td>
+            <td>${e.notes}</td>
+          </tr>
+        `).join("")}
+      `;
+      logTableContainer.innerHTML = "";
+      logTableContainer.appendChild(table);
+
+      const summary = logs.map(e =>
+        `${e.date}, ${e.part}, ${e.exercise}, ${e.equipment}, ${e.weight}, ${e.reps}, ${e.sets}, ${e.notes || ""}`
+      ).join("\n");
+      const encoded = encodeURIComponent(summary);
       const shortcutURL = `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
-      window.location.href = shortcutURL;
+      const saveBtn = createButton("儲存到 iPhone Notes", () => { window.location.href = shortcutURL; });
+      logTableContainer.appendChild(saveBtn);
     }
 
     start();
