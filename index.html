@@ -3,7 +3,7 @@
 <head>
   <title>Exercise Logger</title>
   <style>
-    body { font-family: Arial; margin: 20px; font-size: 2.2em; }
+    body { font-family: Arial; margin: 20px; font-size: 2.5em; }
     .step { margin-bottom: 40px; }
     button {
       margin: 10px;
@@ -65,14 +65,14 @@
         notes: ""
       };
       const div = document.createElement("div");
-      div.innerHTML = "<strong>1. 運動類型</strong><br><br>";
-      div.appendChild(createButton("游泳", () => {
-        log.part = "游泳";
+      div.innerHTML = "<strong>1. What did you do?</strong><br><br>";
+      div.appendChild(createButton("Swim", () => {
+        log.part = "Swim";
         log.exercise = "—";
-        log.equipment = "水池";
+        log.equipment = "Pool";
         stepSwim();
       }));
-      div.appendChild(createButton("重量訓練", () => {
+      div.appendChild(createButton("Heavy Lift", () => {
         stepBodyPart();
       }));
       renderStep(div);
@@ -80,7 +80,7 @@
 
     function stepSwim() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>次數與組數（30m/次）</strong><br><br>";
+      div.innerHTML = "<strong>Times × 30m</strong><br><br>";
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = "30m";
@@ -93,47 +93,110 @@
 
     function stepBodyPart() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>部位</strong><br><br>";
-      div.appendChild(createButton("胸", () => {
-        log.part = "胸";
-        stepChestType();
+      div.innerHTML = "<strong>Select Body Part</strong><br><br>";
+      div.appendChild(createButton("Chest", () => {
+        log.part = "Chest";
+        stepChestEquipment();
       }));
-      div.appendChild(createButton("腿臀", () => {
-        log.part = "腿臀";
-        log.exercise = "Gluteus";
-        log.equipment = "Machine";
-        stepWeight();
+      div.appendChild(createButton("Back", () => {
+        log.part = "Back";
+        log.exercise = "Back";
+        log.equipment = "Dumbbell";
+        stepWeight(["7kg", "14kg", "21kg", "28kg", "35kg", "42kg", "49kg", "56kg", "63kg", "70kg", "77kg", "84kg", "91kg"]);
       }));
-      div.appendChild(createButton("腿", () => {
-        log.part = "腿";
-        log.exercise = "Quadriceps";
-        log.equipment = "Machine";
-        stepWeight();
+      div.appendChild(createButton("Leg", () => {
+        stepLegType();
       }));
       renderStep(div);
     }
 
-    function stepChestType() {
+    function stepChestEquipment() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>胸部動作</strong><br><br>";
-      div.appendChild(createButton("Middle Chest", () => {
-        log.exercise = "Middle Chest";
-        log.equipment = "Dumbbell";
-        stepWeight();
+      div.innerHTML = "<strong>Chest - Equipment</strong><br><br>";
+      div.appendChild(createButton("Cable Machine", () => {
+        stepChestArea("Cable Machine");
       }));
+      div.appendChild(createButton("Dumbbell", () => {
+        stepChestArea("Dumbbell");
+      }));
+      renderStep(div);
+    }
+
+    function stepChestArea(equipment) {
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>Chest - Area (${equipment})</strong><br><br>`;
       div.appendChild(createButton("Upper Chest", () => {
         log.exercise = "Upper Chest";
-        log.equipment = "Dumbbell";
-        stepWeight();
+        log.equipment = equipment;
+        stepWeight(getChestWeights(equipment));
+      }));
+      div.appendChild(createButton("Middle Chest", () => {
+        log.exercise = "Middle Chest";
+        log.equipment = equipment;
+        stepWeight(getChestWeights(equipment));
       }));
       renderStep(div);
     }
 
-    function stepWeight() {
+    function getChestWeights(equipment) {
+      if (equipment === "Cable Machine") {
+        return [
+          "1.1kg", "3.4kg", "5.7kg", "9.0kg", "10.2kg", "12.5kg", "14.7kg",
+          "17.0kg", "19.3kg", "21.6kg", "23.8kg", "26.2kg", "28.4kg", "30.6kg", "32.9kg"
+        ];
+      } else {
+        return generateRange(10, 30, 2, "kg");
+      }
+    }
+
+    function stepLegType() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>重量（單邊）</strong><br><br>";
-      const weights = ["8kg", "10kg", "12kg", "14kg", "16kg", "20kg", "24kg", "28.4kg", "30kg"];
-      weights.forEach(w => {
+      div.innerHTML = "<strong>Leg - Type</strong><br><br>";
+      div.appendChild(createButton("Stretch", () => {
+        log.part = "Leg";
+        log.exercise = "Stretch";
+        log.equipment = "None";
+        log.weight = "—";
+        log.reps = "—";
+        log.sets = "—";
+        finalizeLog();
+      }));
+      div.appendChild(createButton("Exercise", () => {
+        stepLegPart();
+      }));
+      renderStep(div);
+    }
+
+    function stepLegPart() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Leg - Which part?</strong><br><br>";
+      div.appendChild(createButton("Gluteus", () => {
+        log.part = "Glutes";
+        log.exercise = "Gluteus";
+        log.equipment = "Machine";
+        stepWeight(generateRange(2, 20, 2, "kg"));
+      }));
+      div.appendChild(createButton("Quadriceps", () => {
+        log.part = "Legs";
+        log.exercise = "Quadriceps";
+        log.equipment = "Machine";
+        stepWeight(generateRange(2, 20, 2, "kg"));
+      }));
+      renderStep(div);
+    }
+
+    function generateRange(start, end, step, unit) {
+      let arr = [];
+      for (let i = start; i <= end; i += step) {
+        arr.push(`${i}${unit}`);
+      }
+      return arr;
+    }
+
+    function stepWeight(weightList) {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Select Weight</strong><br><br>";
+      weightList.forEach(w => {
         div.appendChild(createButton(w, () => {
           log.weight = w;
           stepReps();
@@ -144,7 +207,7 @@
 
     function stepReps() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>次數</strong><br><br>";
+      div.innerHTML = "<strong>Reps</strong><br><br>";
       for (let i = 4; i <= 15; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = i;
@@ -156,7 +219,7 @@
 
     function stepSets() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>組數</strong><br><br>";
+      div.innerHTML = "<strong>Sets</strong><br><br>";
       for (let i = 1; i <= 5; i++) {
         div.appendChild(createButton(i, () => {
           log.sets = i;
@@ -168,16 +231,16 @@
 
     function stepNotes() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>備註（可留空）</strong><br><br>";
+      div.innerHTML = "<strong>Notes (optional)</strong><br><br>";
       const input = document.createElement("input");
       input.type = "text";
       input.style.fontSize = "1em";
       input.style.width = "90%";
-      input.placeholder = "例如：中間4次用30kg";
+      input.placeholder = "e.g. 4 reps at 30kg";
       input.onchange = () => log.notes = input.value;
       div.appendChild(input);
       div.appendChild(document.createElement("br"));
-      div.appendChild(createButton("完成", finalizeLog));
+      div.appendChild(createButton("Finish", finalizeLog));
       renderStep(div);
     }
 
@@ -191,8 +254,8 @@
       const table = document.createElement("table");
       table.innerHTML = `
         <tr>
-          <th>日期</th><th>部位</th><th>動作</th><th>器材</th>
-          <th>重量（單邊）</th><th>次數</th><th>組數</th><th>備註</th>
+          <th>Date</th><th>Body Part</th><th>Exercise</th><th>Equipment</th>
+          <th>Weight</th><th>Reps</th><th>Sets</th><th>Notes</th>
         </tr>
         ${logs.map(e => `
           <tr>
@@ -215,7 +278,7 @@
       ).join("\n");
       const encoded = encodeURIComponent(summary);
       const shortcutURL = `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
-      const saveBtn = createButton("儲存到 iPhone Notes", () => { window.location.href = shortcutURL; });
+      const saveBtn = createButton("Save to iPhone Notes", () => { window.location.href = shortcutURL; });
       logTableContainer.appendChild(saveBtn);
     }
 
