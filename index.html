@@ -99,24 +99,39 @@
         stepChestEquipment();
       }));
       div.appendChild(createButton("Back", () => {
-        const backDiv = document.createElement("div");
-        backDiv.innerHTML = "<strong>Back - Machine</strong><br><br>";
-        backDiv.appendChild(createButton("Seat Row", () => {
-          log.exercise = "Seat Row";
-          log.part = "Back";
-          log.equipment = "Machine";
-          stepWeight(["35kg", "42kg", "49kg", "56kg"]);
-        }));
-        backDiv.appendChild(createButton("Straight Arm Pulldown", () => {
-          log.exercise = "Straight Arm Pulldown";
-          log.part = "Back";
-          log.equipment = "Machine";
-          stepWeight(["21kg"]);
-        }));
-        renderStep(backDiv);
+        log.part = "Back";
+        stepBackType();
       }));
       div.appendChild(createButton("Leg", () => {
         stepLegType();
+      }));
+      renderStep(div);
+    }
+
+    function stepBackType() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Back - Type</strong><br><br>";
+      div.appendChild(createButton("Machine", () => {
+        stepBackGrip("Machine");
+      }));
+      div.appendChild(createButton("Seat Row", () => {
+        stepBackGrip("Seat Row");
+      }));
+      renderStep(div);
+    }
+
+    function stepBackGrip(equipment) {
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>${equipment} - Grip Type</strong><br><br>`;
+      div.appendChild(createButton("Normal", () => {
+        log.exercise = `${equipment} - Normal`;
+        log.equipment = equipment;
+        stepWeight(["35kg", "42kg", "49kg", "56kg"]);
+      }));
+      div.appendChild(createButton("Close Grip", () => {
+        log.exercise = `${equipment} - Close Grip`;
+        log.equipment = equipment;
+        stepWeight(["35kg", "42kg", "49kg", "56kg"]);
       }));
       renderStep(div);
     }
