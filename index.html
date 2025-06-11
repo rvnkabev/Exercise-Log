@@ -99,10 +99,21 @@
         stepChestEquipment();
       }));
       div.appendChild(createButton("Back", () => {
-        log.part = "Back";
-        log.exercise = "Back";
-        log.equipment = "Machine";
-        stepWeight(["7kg", "14kg", "21kg", "28kg", "35kg", "42kg", "49kg", "56kg", "63kg", "70kg", "77kg", "84kg", "91kg"]);
+        const backDiv = document.createElement("div");
+        backDiv.innerHTML = "<strong>Back - Machine</strong><br><br>";
+        backDiv.appendChild(createButton("Seat Row", () => {
+          log.exercise = "Seat Row";
+          log.part = "Back";
+          log.equipment = "Machine";
+          stepWeight(["35kg", "42kg", "49kg", "56kg"]);
+        }));
+        backDiv.appendChild(createButton("Straight Arm Pulldown", () => {
+          log.exercise = "Straight Arm Pulldown";
+          log.part = "Back";
+          log.equipment = "Machine";
+          stepWeight(["21kg"]);
+        }));
+        renderStep(backDiv);
       }));
       div.appendChild(createButton("Leg", () => {
         stepLegType();
@@ -113,40 +124,77 @@
     function stepChestEquipment() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Chest - Equipment</strong><br><br>";
-      div.appendChild(createButton("Cable Machine", () => {
-        stepChestArea("Cable Machine");
-      }));
+
       div.appendChild(createButton("Dumbbell", () => {
-        stepChestArea("Dumbbell");
+        const areaDiv = document.createElement("div");
+        areaDiv.innerHTML = "<strong>Dumbbell Exercise</strong><br><br>";
+        areaDiv.appendChild(createButton("Flat Dumbbell Press", () => {
+          log.exercise = "Flat Dumbbell Press";
+          log.equipment = "Dumbbell";
+          stepWeight(generateRange(10, 30, 2, "kg"));
+        }));
+        areaDiv.appendChild(createButton("Incline Dumbbell Press", () => {
+          log.exercise = "Incline Dumbbell Press";
+          log.equipment = "Dumbbell";
+          stepWeight(generateRange(10, 30, 2, "kg"));
+        }));
+        areaDiv.appendChild(createButton("Dumbbell Fly", () => {
+          log.exercise = "Dumbbell Fly";
+          log.equipment = "Dumbbell";
+          stepWeight(generateRange(10, 30, 2, "kg"));
+        }));
+        renderStep(areaDiv);
       }));
-      renderStep(div);
-    }
 
-    function stepChestArea(equipment) {
-      const div = document.createElement("div");
-      div.innerHTML = `<strong>Chest - Area (${equipment})</strong><br><br>`;
-      div.appendChild(createButton("Upper Chest", () => {
-        log.exercise = "Upper Chest";
-        log.equipment = equipment;
-        stepWeight(getChestWeights(equipment));
+      div.appendChild(createButton("Smith Machine", () => {
+        const smithDiv = document.createElement("div");
+        smithDiv.innerHTML = "<strong>Smith Press</strong><br><br>";
+        smithDiv.appendChild(createButton("Flat Smith Press", () => {
+          log.exercise = "Flat Smith Press";
+          log.equipment = "Smith Machine";
+          stepWeight(generateRange(20, 100, 10, "kg"));
+        }));
+        smithDiv.appendChild(createButton("Incline Smith Press", () => {
+          log.exercise = "Incline Smith Press";
+          log.equipment = "Smith Machine";
+          stepWeight(generateRange(20, 100, 10, "kg"));
+        }));
+        renderStep(smithDiv);
       }));
-      div.appendChild(createButton("Middle Chest", () => {
-        log.exercise = "Middle Chest";
-        log.equipment = equipment;
-        stepWeight(getChestWeights(equipment));
-      }));
-      renderStep(div);
-    }
 
-    function getChestWeights(equipment) {
-      if (equipment === "Cable Machine") {
-        return [
-          "1.1kg", "3.4kg", "5.7kg", "9.0kg", "10.2kg", "12.5kg", "14.7kg",
-          "17.0kg", "19.3kg", "21.6kg", "23.8kg", "26.2kg", "28.4kg", "30.6kg", "32.9kg"
-        ];
-      } else {
-        return generateRange(10, 30, 2, "kg");
-      }
+      div.appendChild(createButton("Cable Machine", () => {
+        const cableDiv = document.createElement("div");
+        cableDiv.innerHTML = "<strong>Cable Chest</strong><br><br>";
+        cableDiv.appendChild(createButton("Cable Chest Press", () => {
+          log.exercise = "Cable Chest Press";
+          log.equipment = "Cable Machine";
+          stepWeight(getChestWeights("Cable Machine"));
+        }));
+        cableDiv.appendChild(createButton("Cable Fly", () => {
+          log.exercise = "Cable Fly";
+          log.equipment = "Cable Machine";
+          stepWeight(getChestWeights("Cable Machine"));
+        }));
+        renderStep(cableDiv);
+      }));
+
+      div.appendChild(createButton("Machine", () => {
+        const machineDiv = document.createElement("div");
+        machineDiv.innerHTML = "<strong>Machine Chest</strong><br><br>";
+        machineDiv.appendChild(createButton("Chest Press", () => {
+          log.exercise = "Chest Press";
+          log.equipment = "Machine";
+          stepWeight(["70kg"]);
+        }));
+        machineDiv.appendChild(createButton("Machine Fly", () => {
+          log.exercise = "Machine Fly";
+          log.equipment = "Machine";
+          stepWeight(["35kg"]);
+        }));
+        renderStep(machineDiv);
+      }));
+
+      renderStep(div);
     }
 
     function stepLegType() {
@@ -191,6 +239,17 @@
         arr.push(`${i}${unit}`);
       }
       return arr;
+    }
+
+    function getChestWeights(equipment) {
+      if (equipment === "Cable Machine") {
+        return [
+          "1.1kg", "3.4kg", "5.7kg", "9.0kg", "10.2kg", "12.5kg", "14.7kg",
+          "17.0kg", "19.3kg", "21.6kg", "23.8kg", "26.2kg", "28.4kg", "30.6kg", "32.9kg"
+        ];
+      } else {
+        return generateRange(10, 30, 2, "kg");
+      }
     }
 
     function stepWeight(weightList) {
