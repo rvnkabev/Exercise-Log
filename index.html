@@ -23,9 +23,7 @@
       padding: 8px;
       text-align: center;
     }
-    th {
-      background-color: #eee;
-    }
+    th { background-color: #eee; }
     .panel {
       border: 2px solid #ccc;
       border-radius: 16px;
@@ -36,10 +34,7 @@
     }
     .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .row > * { flex: 0 0 auto; }
-    select {
-      font-size: 1em;
-      padding: 10px;
-    }
+    select { font-size: 1em; padding: 10px; }
     .pill {
       display: inline-block;
       padding: 8px 14px;
@@ -107,10 +102,7 @@
     const LATEST_KEY = "exercise_logger_latest_input";
 
     function saveLatestInput(entry) {
-      const payload = {
-        entry,
-        ts: Date.now()
-      };
+      const payload = { entry, ts: Date.now() };
       localStorage.setItem(LATEST_KEY, JSON.stringify(payload));
     }
 
@@ -119,10 +111,8 @@
         const raw = localStorage.getItem(LATEST_KEY);
         if (!raw) return null;
         const payload = JSON.parse(raw);
-        // 24 hours in ms
-        const maxAge = 24 * 60 * 60 * 1000;
+        const maxAge = 24 * 60 * 60 * 1000; // 24h
         if ((Date.now() - payload.ts) > maxAge) {
-          // Expired – clean up
           localStorage.removeItem(LATEST_KEY);
           return null;
         }
@@ -133,7 +123,61 @@
     }
 
     function clearLatestIfExpired() {
-      loadLatestInput(); // loadLatestInput already clears if expired
+      loadLatestInput(); // already clears if expired
+    }
+
+    /* ----------------------------
+       Parsing / normalization
+    -----------------------------*/
+    function parseSets(sets) {
+      if (sets == null) return null;
+      if (typeof sets === "number") return sets; // swim uses numeric sets
+      const m = String(sets).match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    function formatSetsLikeOriginal(oldSets, n) {
+      if (typeof oldSets === "number") return n; // keep numeric if numeric before
+      return `${n} sets`;
+    }
+
+    function incrementSets(sets, delta) {
+      const n = parseSets(sets);
+      if (n == null) return sets;
+      const nn = Math.max(1, n + delta);
+      return formatSetsLikeOriginal(sets, nn);
+    }
+
+    function parseReps(reps) {
+      if (!reps) return null;
+      // numeric pattern like "10 reps"; swim "30m" returns null
+      const m = String(reps).match(/(\d+)\s*reps/i);
+      if (m) return parseInt(m[1], 10);
+      return null;
+    }
+
+    function reduceRepsValue(reps, delta) {
+      const n = parseReps(reps);
+      if (n == null) return reps; // can't change non-numeric reps (e.g., "30m")
+      const nn = Math.max(1, n + delta); // delta may be negative or positive
+      return `${nn} reps`;
+    }
+
+    function parseWeightKg(weight) {
+      if (!weight) return null;
+      const s = String(weight).trim();
+      if (!/kg$/i.test(s)) return null;
+      const num = parseFloat(s.replace(/kg/i, ""));
+      return isNaN(num) ? null : num;
+    }
+
+    function adjustWeight(weight, deltaKg) {
+      const w = parseWeightKg(weight);
+      if (w == null) return weight; // can't parse (e.g., "—" or swims)
+      const nw = Math.max(0, w + deltaKg); // deltaKg can be negative
+      const hadDecimal = /\d+\.\d+/.test(String(weight));
+      const display = hadDecimal ? nw.toFixed(1) : String(Math.round(nw));
+      return `${display}kg`;
     }
 
     /* --------------------------------------
@@ -160,7 +204,7 @@
         return;
       }
 
-      // Show a concise summary row
+      // Summary chips
       const sum = document.createElement("div");
       sum.style.marginBottom = "14px";
       sum.innerHTML = `
@@ -174,25 +218,28 @@
       `;
       panel.appendChild(sum);
 
-      // Quick Actions header
+      // Quick actions
       const header = document.createElement("div");
       header.className = "bold";
       header.style.marginBottom = "8px";
       header.textContent = "Next Step";
       panel.appendChild(header);
 
-      // Quick actions row
       const row = document.createElement("div");
       row.className = "row";
 
-      // 1) +1 set
+      // +1 set → new record cloned from saved record, sets +1
       row.appendChild(createButton("+ 1 set", () => {
-        const modified = structuredClone(latest);
-        modified.sets = incrementSets(modified.sets, 1);
-        commitQuickAction(modified, "Add 1 set");
+        const base = structuredClone(latest);
+        const modified = {
+          ...base,
+          sets: incrementSets(base.sets, 1),
+          notes: base.notes ? `${base.notes} | +1 set` : "+1 set"
+        };
+        commitNewFromLatest(modified);
       }));
 
-      // 2) Reduce reps (dropdown 1-5)
+      // Reduce reps → dropdown 1-5 (negative delta), new record cloned from saved record
       const repsWrap = document.createElement("div");
       const repsLabel = document.createElement("div");
       repsLabel.className = "muted";
@@ -205,103 +252,72 @@
         repsSelect.appendChild(opt);
       });
       const repsBtn = createButton("Apply", () => {
-        const delta = parseInt(repsSelect.value, 10);
-        const modified = structuredClone(latest);
-        modified.reps = reduceReps(modified.reps, delta);
-        commitQuickAction(modified, `Reduce reps by ${delta}`);
+        const delta = -parseInt(repsSelect.value, 10); // reduce
+        const base = structuredClone(latest);
+        const modified = {
+          ...base,
+          reps: reduceRepsValue(base.reps, delta),
+          notes: base.notes ? `${base.notes} | reduce reps ${-delta}` : `reduce reps ${-delta}`
+        };
+        commitNewFromLatest(modified);
       });
       repsWrap.appendChild(repsLabel);
       repsWrap.appendChild(repsSelect);
       repsWrap.appendChild(repsBtn);
       row.appendChild(repsWrap);
 
-      // 3) Reduce weight (5,10,20)
+      // Reduce weight → choose weight decrement; also ask reps delta (-5..+5, default 0)
       const wtWrap = document.createElement("div");
       const wtLabel = document.createElement("div");
       wtLabel.className = "muted";
-      wtLabel.textContent = "Reduce weight:";
+      wtLabel.textContent = "Reduce weight (ask reps Δ):";
       wtWrap.appendChild(wtLabel);
+
+      // reps delta select for weight path
+      const repsDeltaLabel = document.createElement("div");
+      repsDeltaLabel.className = "muted";
+      repsDeltaLabel.textContent = "Reps Δ (-5..+5, default 0)";
+      const repsDeltaSelect = document.createElement("select");
+      for (let n = -5; n <= 5; n++) {
+        const opt = document.createElement("option");
+        opt.value = n;
+        opt.textContent = n;
+        if (n === 0) opt.selected = true;
+        repsDeltaSelect.appendChild(opt);
+      }
+      wtWrap.appendChild(repsDeltaLabel);
+      wtWrap.appendChild(repsDeltaSelect);
+
+      // weight buttons (-5, -10, -20)
       [5,10,20].forEach(n => {
         wtWrap.appendChild(createButton(`-${n}`, () => {
-          const modified = structuredClone(latest);
-          modified.weight = reduceWeight(modified.weight, n);
-          commitQuickAction(modified, `Reduce weight by ${n}`);
+          const repsDelta = parseInt(repsDeltaSelect.value, 10) || 0;
+          const base = structuredClone(latest);
+          const modified = {
+            ...base,
+            weight: adjustWeight(base.weight, -n),
+            reps: reduceRepsValue(base.reps, repsDelta), // repsDelta can be -5..+5
+            notes: base.notes
+              ? `${base.notes} | -${n}kg, reps Δ ${repsDelta}`
+              : `-${n}kg, reps Δ ${repsDelta}`
+          };
+          commitNewFromLatest(modified);
         }));
       });
       row.appendChild(wtWrap);
 
       panel.appendChild(row);
-
-      // Mount panel
       latestContainer.appendChild(panel);
     }
 
-    function commitQuickAction(modifiedEntry, note) {
-      // Append a small note to record the quick action (without overwriting user's note)
-      const joinedNote = modifiedEntry.notes ? `${modifiedEntry.notes} | ${note}` : note;
-      const finalized = { ...modifiedEntry, notes: joinedNote };
-
-      logs.push(finalized);
-      // Update latest (refresh 24h clock)
-      saveLatestInput(finalized);
+    function commitNewFromLatest(newEntry) {
+      // Append as NEW record
+      logs.push(newEntry);
+      // Save as latest (refresh 24h)
+      saveLatestInput(newEntry);
       // Refresh views
       renderTable();
       renderLatestInput();
-    }
-
-    /* ----------------------------
-       Parsing / normalization
-    -----------------------------*/
-    function parseSets(sets) {
-      if (sets == null) return null;
-      if (typeof sets === "number") return sets; // e.g., Swim path used a number
-      const m = String(sets).match(/(\d+)/);
-      return m ? parseInt(m[1], 10) : null;
-    }
-
-    function formatSetsLikeOriginal(oldSets, n) {
-      if (typeof oldSets === "number") return n; // keep numeric if it was numeric
-      return `${n} sets`;
-    }
-
-    function incrementSets(sets, delta) {
-      const n = parseSets(sets);
-      if (n == null) return sets; // can't parse → leave unchanged
-      const nn = Math.max(1, n + delta);
-      return formatSetsLikeOriginal(sets, nn);
-    }
-
-    function parseReps(reps) {
-      if (!reps) return null;
-      // Expect "10 reps" OR "30m" for swim (non-numeric)
-      const m = String(reps).match(/(\d+)\s*reps/i);
-      if (m) return parseInt(m[1], 10);
-      return null; // non-numeric reps (e.g., "30m")
-    }
-
-    function reduceReps(reps, delta) {
-      const n = parseReps(reps);
-      if (n == null) return reps; // can't reduce non-numeric reps (e.g., swims)
-      const nn = Math.max(1, n - delta);
-      return `${nn} reps`;
-    }
-
-    function parseWeightKg(weight) {
-      if (!weight) return null;
-      const s = String(weight).trim();
-      if (!/kg$/i.test(s)) return null;
-      const num = parseFloat(s.replace(/kg/i, ""));
-      return isNaN(num) ? null : num;
-    }
-
-    function reduceWeight(weight, delta) {
-      const w = parseWeightKg(weight);
-      if (w == null) return weight; // can't parse (e.g., "—" or swims)
-      const nw = Math.max(0, w - delta);
-      // Preserve decimals if original had decimals
-      const hadDecimal = /\d+\.\d+/.test(String(weight));
-      const display = hadDecimal ? nw.toFixed(1) : String(Math.round(nw));
-      return `${display}kg`;
     }
 
     /* ----------------------------
@@ -433,7 +449,7 @@
 
       div.appendChild(createButton("Cable Machine", () => {
         const cableDiv = document.createElement("div");
-        cableDiv.innerHTML = "<strong>Cable Chest</strong><br><br>";
+		cableDiv.innerHTML = "<strong>Cable Chest</strong><br><br>";
         cableDiv.appendChild(createButton("Cable Chest Press", () => {
           log.exercise = "Cable Chest Press";
           log.equipment = "Cable Machine";
@@ -565,10 +581,8 @@
     }
 
     function finalizeLog() {
-      // Push to session logs
       logs.push({ ...log });
-      // Save as latest (24h)
-      saveLatestInput({ ...log });
+      saveLatestInput({ ...log }); // base for quick actions
       renderTable();
       renderLatestInput();
       start();
