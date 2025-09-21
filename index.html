@@ -69,9 +69,6 @@
     const logTableContainer = document.getElementById("logTableContainer");
     const latestContainer = document.getElementById("latestContainer");
 
-    /* ----------------------------
-       Helpers: date & rendering
-    -----------------------------*/
     function getToday() {
       const d = new Date();
       return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
@@ -97,73 +94,54 @@
       return arr;
     }
 
-    /* ----------------------------
-       Latest Input (24h) storage
-    -----------------------------*/
     const LATEST_KEY = "exercise_logger_latest_input";
-
     function saveLatestInput(entry) {
       const payload = { entry, ts: Date.now() };
       localStorage.setItem(LATEST_KEY, JSON.stringify(payload));
     }
-
     function loadLatestInput() {
       try {
         const raw = localStorage.getItem(LATEST_KEY);
         if (!raw) return null;
         const payload = JSON.parse(raw);
-        const maxAge = 24 * 60 * 60 * 1000; // 24h
+        const maxAge = 24 * 60 * 60 * 1000;
         if ((Date.now() - payload.ts) > maxAge) {
           localStorage.removeItem(LATEST_KEY);
           return null;
         }
         return payload.entry;
-      } catch (e) {
-        return null;
-      }
+      } catch (e) { return null; }
     }
+    function clearLatestIfExpired() { loadLatestInput(); }
 
-    function clearLatestIfExpired() {
-      loadLatestInput(); // already clears if expired
-    }
-
-    /* ----------------------------
-       Parsing / normalization
-    -----------------------------*/
     function parseSets(sets) {
       if (sets == null) return null;
-      if (typeof sets === "number") return sets; // swim uses numeric sets
+      if (typeof sets === "number") return sets;
       const m = String(sets).match(/(\d+)/);
       return m ? parseInt(m[1], 10) : null;
     }
-
     function formatSetsLikeOriginal(oldSets, n) {
-      if (typeof oldSets === "number") return n; // keep numeric if numeric before
+      if (typeof oldSets === "number") return n;
       return `${n} set${n === 1 ? "" : "s"}`;
     }
-
     function incrementSets(sets, delta) {
       const n = parseSets(sets);
       if (n == null) return sets;
       const nn = Math.max(1, n + delta);
       return formatSetsLikeOriginal(sets, nn);
     }
-
     function parseReps(reps) {
       if (!reps) return null;
-      // numeric pattern like "10 reps"; swim "30m" returns null
       const m = String(reps).match(/(\d+)\s*reps/i);
       if (m) return parseInt(m[1], 10);
       return null;
     }
-
     function changeRepsValue(reps, delta) {
       const n = parseReps(reps);
-      if (n == null) return reps; // can't change non-numeric reps (e.g., "30m")
-      const nn = Math.max(1, n + delta); // delta may be negative or positive
+      if (n == null) return reps;
+      const nn = Math.max(1, n + delta);
       return `${nn} reps`;
     }
-
     function parseWeightKg(weight) {
       if (!weight) return null;
       const s = String(weight).trim();
@@ -171,25 +149,20 @@
       const num = parseFloat(s.replace(/kg/i, ""));
       return isNaN(num) ? null : num;
     }
-
     function adjustWeight(weight, deltaKg) {
       const w = parseWeightKg(weight);
-      if (w == null) return weight; // can't parse (e.g., "—" or swims)
-      const nw = Math.max(0, w + deltaKg); // deltaKg can be negative
+      if (w == null) return weight;
+      const nw = Math.max(0, w + deltaKg);
       const hadDecimal = /\d+\.\d+/.test(String(weight));
       const display = hadDecimal ? nw.toFixed(1) : String(Math.round(nw));
       return `${display}kg`;
     }
 
-    /* --------------------------------------
-       Latest Input Panel + Quick Next Steps
-    ---------------------------------------*/
     function renderLatestInput() {
       clearLatestIfExpired();
       latestContainer.innerHTML = "";
 
       const latest = loadLatestInput();
-
       const panel = document.createElement("div");
       panel.className = "panel";
       const title = document.createElement("div");
@@ -205,7 +178,6 @@
         return;
       }
 
-      // Summary chips
       const sum = document.createElement("div");
       sum.style.marginBottom = "14px";
       sum.innerHTML = `
@@ -219,7 +191,6 @@
       `;
       panel.appendChild(sum);
 
-      // Quick actions
       const header = document.createElement("div");
       header.className = "bold";
       header.style.marginBottom = "8px";
@@ -229,18 +200,12 @@
       const row = document.createElement("div");
       row.className = "row";
 
-      // +1 set → add a NEW record that is the same as the saved record (duplicate)
       row.appendChild(createButton("+ 1 set", () => {
         const base = structuredClone(latest);
-        const duplicated = {
-          ...base,
-          // optional note tag to show it's an additional set (doesn't ask notes)
-          notes: base.notes ? `${base.notes} | +1 set (duplicate)` : "+1 set (duplicate)"
-        };
+        const duplicated = { ...base };
         commitNewFromLatest(duplicated);
       }));
 
-      // Reduce reps → dropdown 1-5 (negative delta), new record cloned from saved record
       const repsWrap = document.createElement("div");
       const repsLabel = document.createElement("div");
       repsLabel.className = "muted";
@@ -253,13 +218,9 @@
         repsSelect.appendChild(opt);
       });
       const repsBtn = createButton("Apply", () => {
-        const delta = -parseInt(repsSelect.value, 10); // reduce
+        const delta = -parseInt(repsSelect.value, 10);
         const base = structuredClone(latest);
-        const modified = {
-          ...base,
-          reps: changeRepsValue(base.reps, delta),
-          notes: base.notes ? `${base.notes} | reduce reps ${-delta}` : `reduce reps ${-delta}`
-        };
+        const modified = { ...base, reps: changeRepsValue(base.reps, delta) };
         commitNewFromLatest(modified);
       });
       repsWrap.appendChild(repsLabel);
@@ -267,7 +228,6 @@
       repsWrap.appendChild(repsBtn);
       row.appendChild(repsWrap);
 
-      // Reduce weight → choose weight decrement; also ask reps delta (-5..+5, default 0)
       const wtWrap = document.createElement("div");
       const wtLabel = document.createElement("div");
       wtLabel.className = "muted";
@@ -295,10 +255,7 @@
           const modified = {
             ...base,
             weight: adjustWeight(base.weight, -n),
-            reps: changeRepsValue(base.reps, repsDelta), // repsDelta can be -5..+5
-            notes: base.notes
-              ? `${base.notes} | -${n}kg, reps Δ ${repsDelta}`
-              : `-${n}kg, reps Δ ${repsDelta}`
+            reps: changeRepsValue(base.reps, repsDelta)
           };
           commitNewFromLatest(modified);
         }));
@@ -316,17 +273,8 @@
       renderLatestInput();
     }
 
-    /* ----------------------------
-       Core flow: steps and logging
-    -----------------------------*/
     function start() {
-      log = {
-        date: getToday(),
-        weight: "—",
-        reps: "—",
-        sets: "—",
-        notes: "" // heavy lifting will not prompt; stays empty
-      };
+      log = { date: getToday(), weight: "—", reps: "—", sets: "—" };
       const div = document.createElement("div");
       div.innerHTML = "<strong>1. What did you do?</strong><br><br>";
       div.appendChild(createButton("Swim", () => {
@@ -341,8 +289,6 @@
         stepBodyPart();
       }));
       renderStep(div);
-
-      // Render latest input panel on load
       renderLatestInput();
     }
 
@@ -352,7 +298,7 @@
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = "30m";
-          log.sets = i; // numeric sets for swim
+          log.sets = i;
           finalizeLog();
         }));
       }
@@ -362,29 +308,17 @@
     function stepBodyPart() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Select Body Part</strong><br><br>";
-      div.appendChild(createButton("Chest", () => {
-        log.part = "Chest";
-        stepChestEquipment();
-      }));
-      div.appendChild(createButton("Back", () => {
-        log.part = "Back";
-        stepBackType();
-      }));
-      div.appendChild(createButton("Leg", () => {
-        stepLegType();
-      }));
+      div.appendChild(createButton("Chest", () => { log.part = "Chest"; stepChestEquipment(); }));
+      div.appendChild(createButton("Back", () => { log.part = "Back"; stepBackType(); }));
+      div.appendChild(createButton("Leg", () => { stepLegType(); }));
       renderStep(div);
     }
 
     function stepBackType() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Back - Type</strong><br><br>";
-      div.appendChild(createButton("Machine", () => {
-        stepBackGrip("Machine");
-      }));
-      div.appendChild(createButton("Seat Row", () => {
-        stepBackGrip("Seat Row");
-      }));
+      div.appendChild(createButton("Machine", () => { stepBackGrip("Machine"); }));
+      div.appendChild(createButton("Seat Row", () => { stepBackGrip("Seat Row"); }));
       renderStep(div);
     }
 
@@ -407,7 +341,6 @@
     function stepChestEquipment() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Chest - Equipment</strong><br><br>";
-
       div.appendChild(createButton("Dumbbell", () => {
         const areaDiv = document.createElement("div");
         areaDiv.innerHTML = "<strong>Dumbbell Exercise</strong><br><br>";
@@ -428,7 +361,6 @@
         }));
         renderStep(areaDiv);
       }));
-
       div.appendChild(createButton("Smith Machine", () => {
         const smithDiv = document.createElement("div");
         smithDiv.innerHTML = "<strong>Smith Press</strong><br><br>";
@@ -444,7 +376,6 @@
         }));
         renderStep(smithDiv);
       }));
-
       div.appendChild(createButton("Cable Machine", () => {
         const cableDiv = document.createElement("div");
         cableDiv.innerHTML = "<strong>Cable Chest</strong><br><br>";
@@ -460,7 +391,6 @@
         }));
         renderStep(cableDiv);
       }));
-
       div.appendChild(createButton("Machine", () => {
         const machineDiv = document.createElement("div");
         machineDiv.innerHTML = "<strong>Machine Chest</strong><br><br>";
@@ -476,19 +406,14 @@
         }));
         renderStep(machineDiv);
       }));
-
       renderStep(div);
     }
 
     function getChestWeights(equipment) {
       if (equipment === "Cable Machine") {
-        return [
-          "1.1kg", "3.4kg", "5.7kg", "9.0kg", "10.2kg", "12.5kg", "14.7kg",
-          "17.0kg", "19.3kg", "21.6kg", "23.8kg", "26.2kg", "28.4kg", "30.6kg", "32.9kg"
-        ];
-      } else {
-        return generateRange(10, 30, 2, "kg");
-      }
+        return ["1.1kg","3.4kg","5.7kg","9.0kg","10.2kg","12.5kg","14.7kg",
+          "17.0kg","19.3kg","21.6kg","23.8kg","26.2kg","28.4kg","30.6kg","32.9kg"];
+      } else return generateRange(10, 30, 2, "kg");
     }
 
     function stepLegType() {
@@ -503,10 +428,7 @@
         log.sets = "—";
         finalizeLog();
       }));
-      div.appendChild(createButton("Exercise", () => {
-        log.part = "Legs";
-        stepLegPart();
-      }));
+      div.appendChild(createButton("Exercise", () => { stepLegPart(); }));
       renderStep(div);
     }
 
@@ -540,69 +462,6 @@
       renderStep(div);
     }
 
-    // For HEAVY: do NOT ask sets/notes; default sets = 1 and finalize immediately after reps
     function stepReps() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>Reps</strong><br><br>";
-      for (let i = 4; i <= 15; i++) {
-        div.appendChild(createButton(i, () => {
-          log.reps = `${i} reps`;
-          if (mode === 'heavy') {
-            log.sets = "1 set";
-            // notes untouched (no prompt)
-            finalizeLog();
-          } else {
-            // swim path continues to sets (already chosen in stepSwim)
-            finalizeLog();
-          }
-        }));
-      }
-      renderStep(div);
-    }
-
-    function finalizeLog() {
-      logs.push({ ...log });
-      saveLatestInput({ ...log }); // base for quick actions
-      renderTable();
-      renderLatestInput();
-      start();
-    }
-
-    function renderTable() {
-      const table = document.createElement("table");
-      table.innerHTML = `
-        <tr>
-          <th>Date</th><th>Body Part</th><th>Exercise</th><th>Equipment</th>
-          <th>Weight</th><th>Reps</th><th>Sets</th><th>Notes</th>
-        </tr>
-        ${logs.map(e => `
-          <tr>
-            <td>${e.date || "—"}</td>
-            <td>${e.part || "—"}</td>
-            <td>${e.exercise || "—"}</td>
-            <td>${e.equipment || "—"}</td>
-            <td>${e.weight || "—"}</td>
-            <td>${e.reps || "—"}</td>
-            <td>${e.sets || "—"}</td>
-            <td>${e.notes || ""}</td>
-          </tr>
-        `).join("")}
-      `;
-      logTableContainer.innerHTML = "";
-      logTableContainer.appendChild(table);
-
-      const summary = logs.map(e =>
-        `${e.date || ""}, ${e.part || ""}, ${e.exercise || ""}, ${e.equipment || ""}, ${e.weight || ""}, ${e.reps || ""}, ${e.sets || ""}, ${e.notes || ""}`
-      ).join("\n");
-      const encoded = encodeURIComponent(summary);
-      const shortcutURL = `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
-      const saveBtn = createButton("Save to iPhone Notes", () => { window.location.href = shortcutURL; });
-      logTableContainer.appendChild(saveBtn);
-    }
-
-    // Boot
-    start();
-  </script>
-
-</body>
-</html>
+      div.innerHTML = "<strong>Reps
