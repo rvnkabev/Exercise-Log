@@ -156,7 +156,7 @@
       return null;
     }
 
-    function reduceRepsValue(reps, delta) {
+    function changeRepsValue(reps, delta) {
       const n = parseReps(reps);
       if (n == null) return reps; // can't change non-numeric reps (e.g., "30m")
       const nn = Math.max(1, n + delta); // delta may be negative or positive
@@ -228,15 +228,15 @@
       const row = document.createElement("div");
       row.className = "row";
 
-      // +1 set → new record cloned from saved record, sets +1
+      // +1 set → add a NEW record cloned from saved record, but with reps fixed to "1 reps"
       row.appendChild(createButton("+ 1 set", () => {
         const base = structuredClone(latest);
-        const modified = {
+        const newEntry = {
           ...base,
-          sets: incrementSets(base.sets, 1),
-          notes: base.notes ? `${base.notes} | +1 set` : "+1 set"
+          reps: "1 reps",
+          notes: base.notes ? `${base.notes} | +1 set (1 rep)` : "+1 set (1 rep)"
         };
-        commitNewFromLatest(modified);
+        commitNewFromLatest(newEntry);
       }));
 
       // Reduce reps → dropdown 1-5 (negative delta), new record cloned from saved record
@@ -254,19 +254,19 @@
       const repsBtn = createButton("Apply", () => {
         const delta = -parseInt(repsSelect.value, 10); // reduce
         const base = structuredClone(latest);
-        const modified = {
+        const newEntry = {
           ...base,
-          reps: reduceRepsValue(base.reps, delta),
+          reps: changeRepsValue(base.reps, delta),
           notes: base.notes ? `${base.notes} | reduce reps ${-delta}` : `reduce reps ${-delta}`
         };
-        commitNewFromLatest(modified);
+        commitNewFromLatest(newEntry);
       });
       repsWrap.appendChild(repsLabel);
       repsWrap.appendChild(repsSelect);
       repsWrap.appendChild(repsBtn);
       row.appendChild(repsWrap);
 
-      // Reduce weight → choose weight decrement; also ask reps delta (-5..+5, default 0)
+      // Reduce weight → choose weight decrement; also ask reps delta (-5..+5, default 0); new record
       const wtWrap = document.createElement("div");
       const wtLabel = document.createElement("div");
       wtLabel.className = "muted";
@@ -293,15 +293,15 @@
         wtWrap.appendChild(createButton(`-${n}`, () => {
           const repsDelta = parseInt(repsDeltaSelect.value, 10) || 0;
           const base = structuredClone(latest);
-          const modified = {
+          const newEntry = {
             ...base,
             weight: adjustWeight(base.weight, -n),
-            reps: reduceRepsValue(base.reps, repsDelta), // repsDelta can be -5..+5
+            reps: changeRepsValue(base.reps, repsDelta), // repsDelta can be -5..+5
             notes: base.notes
               ? `${base.notes} | -${n}kg, reps Δ ${repsDelta}`
               : `-${n}kg, reps Δ ${repsDelta}`
           };
-          commitNewFromLatest(modified);
+          commitNewFromLatest(newEntry);
         }));
       });
       row.appendChild(wtWrap);
@@ -311,11 +311,8 @@
     }
 
     function commitNewFromLatest(newEntry) {
-      // Append as NEW record
-      logs.push(newEntry);
-      // Save as latest (refresh 24h)
-      saveLatestInput(newEntry);
-      // Refresh views
+      logs.push(newEntry);          // append as NEW record
+      saveLatestInput(newEntry);    // refresh 24h saved record to the newest
       renderTable();
       renderLatestInput();
     }
@@ -449,7 +446,7 @@
 
       div.appendChild(createButton("Cable Machine", () => {
         const cableDiv = document.createElement("div");
-		cableDiv.innerHTML = "<strong>Cable Chest</strong><br><br>";
+        cableDiv.innerHTML = "<strong>Cable Chest</strong><br><br>";
         cableDiv.appendChild(createButton("Cable Chest Press", () => {
           log.exercise = "Cable Chest Press";
           log.equipment = "Cable Machine";
@@ -541,18 +538,29 @@
       renderStep(div);
     }
 
+    // For Heavy Lifts: after choosing reps, finalize immediately with sets=1, no notes
     function stepReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Reps</strong><br><br>";
       for (let i = 4; i <= 15; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = `${i} reps`;
-          stepSets();
+          // Determine if current flow is heavy lifting or swim
+          // If swim, reps would be "30m" and sets chosen earlier; here, for heavy lift we finalize:
+          if (log.part && log.part !== "Swim") {
+            log.sets = "1 set";     // default 1 set for heavy lifting
+            log.notes = "";         // no notes
+            finalizeLog();
+          } else {
+            // fallback (shouldn't happen here)
+            stepSets();
+          }
         }));
       }
       renderStep(div);
     }
 
+    // Kept for completeness; not used in heavy-lift path anymore
     function stepSets() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Sets</strong><br><br>";
@@ -565,6 +573,7 @@
       renderStep(div);
     }
 
+    // Kept for completeness; not used in heavy-lift path anymore
     function stepNotes() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Notes (optional)</strong><br><br>";
