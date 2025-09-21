@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Exercise Logger</title>
+  <meta charset="utf-8" />
   <style>
     body { font-family: Arial; margin: 20px; font-size: 2.5em; }
     .step { margin-bottom: 40px; }
@@ -22,43 +23,100 @@
       padding: 8px;
       text-align: center;
     }
-    th {
-      background-color: #eee;
+    th { background-color: #eee; }
+    .panel {
+      border: 2px solid #ccc;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0 40px 0;
+      background: #fafafa;
+      font-size: 0.7em;
     }
+    .row { display:flex; flex-wrap:wrap; align-items:center; gap:16px; }
+    .row > * { flex: 0 0 auto; }
+    select { font-size: 1em; padding: 8px 12px; }
+    .muted { color:#666; font-size:0.9em; }
   </style>
 </head>
 <body>
 
   <h1>Exercise Logger</h1>
+
+  <!-- New: Latest Input Editor (24h) -->
+  <div id="latestEditorContainer" class="panel" style="display:none;"></div>
+
   <div id="stepContainer" class="step"></div>
   <div id="logTableContainer"></div>
 
   <script>
+    // ------------------ State ------------------
     let log = {};
     const logs = [];
+    let idCounter = Date.now();
+
     const stepContainer = document.getElementById("stepContainer");
     const logTableContainer = document.getElementById("logTableContainer");
+    const latestEditorContainer = document.getElementById("latestEditorContainer");
 
+    // ------------------ Utils ------------------
     function getToday() {
       const d = new Date();
       return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
     }
-
     function renderStep(content) {
       stepContainer.innerHTML = "";
       stepContainer.appendChild(content);
     }
-
     function createButton(text, onClick) {
       const btn = document.createElement("button");
       btn.textContent = text;
       btn.onclick = onClick;
       return btn;
     }
+    function generateRange(start, end, step, unit) {
+      let arr = [];
+      for (let i = start; i <= end; i += step) {
+        arr.push(`${i}${unit}`);
+      }
+      return arr;
+    }
+    function getChestWeights(equipment) {
+      if (equipment === "Cable Machine") {
+        return [
+          "1.1kg", "3.4kg", "5.7kg", "9.0kg", "10.2kg", "12.5kg", "14.7kg",
+          "17.0kg", "19.3kg", "21.6kg", "23.8kg", "26.2kg", "28.4kg", "30.6kg", "32.9kg"
+        ];
+      } else {
+        return generateRange(10, 30, 2, "kg");
+      }
+    }
+    function parseReps(str) {
+      if (!str || str === "—") return null;
+      const m = String(str).match(/(\d+)/);
+      return m ? parseInt(m[1],10) : null;
+    }
+    function formatReps(n) { return n ? `${n} reps` : "—"; }
+    function parseSets(str) {
+      if (!str || str === "—") return null;
+      const m = String(str).match(/(\d+)/);
+      return m ? parseInt(m[1],10) : null;
+    }
+    function formatSets(n) { return n ? `${n} sets` : "—"; }
+    function parseKg(str) {
+      if (!str || str === "—") return null;
+      const m = String(str).match(/([\d.]+)/);
+      return m ? parseFloat(m[1]) : null;
+    }
+    function formatKg(n) { return (n==null) ? "—" : `${n}${Number.isInteger(n)?'':' '}kg`.replace(' kg','kg'); }
 
+    // ------------------ Flow ------------------
     function start() {
       log = {
+        id: ++idCounter,
         date: getToday(),
+        part: "—",
+        exercise: "—",
+        equipment: "—",
         weight: "—",
         reps: "—",
         sets: "—",
@@ -76,6 +134,9 @@
         stepBodyPart();
       }));
       renderStep(div);
+
+      // Try to show latest editor if we have a 24h item
+      renderLatestEditor();
     }
 
     function stepSwim() {
@@ -248,33 +309,15 @@
       renderStep(div);
     }
 
-    function generateRange(start, end, step, unit) {
-      let arr = [];
-      for (let i = start; i <= end; i += step) {
-        arr.push(`${i}${unit}`);
-      }
-      return arr;
-    }
-
-    function getChestWeights(equipment) {
-      if (equipment === "Cable Machine") {
-        return [
-          "1.1kg", "3.4kg", "5.7kg", "9.0kg", "10.2kg", "12.5kg", "14.7kg",
-          "17.0kg", "19.3kg", "21.6kg", "23.8kg", "26.2kg", "28.4kg", "30.6kg", "32.9kg"
-        ];
-      } else {
-        return generateRange(10, 30, 2, "kg");
-      }
-    }
-
     function stepWeight(weightList) {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Select Weight</strong><br><br>";
       weightList.forEach(w => {
-        div.appendChild(createButton(w, () => {
+        const btn = createButton(w, () => {
           log.weight = w;
           stepReps();
-        }));
+        });
+        div.appendChild(btn);
       });
       renderStep(div);
     }
@@ -320,10 +363,14 @@
 
     function finalizeLog() {
       logs.push({ ...log });
+      // Save the latest input to localStorage for 24h
+      saveLatestInput(log);
       renderTable();
+      renderLatestEditor(); // reflect latest
       start();
     }
 
+    // ------------------ Table & Export ------------------
     function renderTable() {
       const table = document.createElement("table");
       table.innerHTML = `
@@ -332,7 +379,7 @@
           <th>Weight</th><th>Reps</th><th>Sets</th><th>Notes</th>
         </tr>
         ${logs.map(e => `
-          <tr>
+          <tr data-id="${e.id}">
             <td>${e.date}</td>
             <td>${e.part}</td>
             <td>${e.exercise}</td>
@@ -355,6 +402,187 @@
       const saveBtn = createButton("Save to iPhone Notes", () => { window.location.href = shortcutURL; });
       logTableContainer.appendChild(saveBtn);
     }
+
+    // ------------------ NEW: Input Record (24h) ------------------
+    const LATEST_KEY = "exercise_latest_input_v1";
+
+    function saveLatestInput(entry) {
+      const payload = { ts: Date.now(), entry };
+      try { localStorage.setItem(LATEST_KEY, JSON.stringify(payload)); } catch(e) {}
+    }
+
+    function loadLatestInput() {
+      try {
+        const raw = localStorage.getItem(LATEST_KEY);
+        if (!raw) return null;
+        const { ts, entry } = JSON.parse(raw);
+        const age = Date.now() - ts;
+        if (age > 24 * 60 * 60 * 1000) {
+          localStorage.removeItem(LATEST_KEY);
+          return null;
+        }
+        return entry;
+      } catch(e) { return null; }
+    }
+
+    function clearLatestInput() {
+      try { localStorage.removeItem(LATEST_KEY); } catch(e) {}
+    }
+
+    // Find latest chest press record in current session logs
+    function findLatestChestPress() {
+      for (let i = logs.length - 1; i >= 0; i--) {
+        const ex = (logs[i].exercise || "").toLowerCase();
+        if (ex.includes("chest press") || ex.includes("smith press")) {
+          return logs[i];
+        }
+      }
+      return null;
+    }
+
+    function renderLatestEditor() {
+      const latest = loadLatestInput();
+      // Prefer the latest Chest Press if available (as requested), else latest saved
+      let target = findLatestChestPress() || latest;
+
+      if (!target) {
+        latestEditorContainer.style.display = "none";
+        latestEditorContainer.innerHTML = "";
+        return;
+      }
+
+      latestEditorContainer.style.display = "block";
+      latestEditorContainer.innerHTML = "";
+
+      const title = document.createElement("div");
+      title.innerHTML = "<strong>Latest Input (24h quick edit)</strong>";
+      latestEditorContainer.appendChild(title);
+
+      const info = document.createElement("div");
+      info.className = "muted";
+      info.textContent = `Editing: ${target.date} • ${target.part} • ${target.exercise} • ${target.equipment} • ${target.weight} • ${target.reps} • ${target.sets}`;
+      latestEditorContainer.appendChild(info);
+
+      const row1 = document.createElement("div");
+      row1.className = "row";
+
+      // +1 Set
+      const btnAddSet = createButton("+1 set", () => {
+        const current = parseSets(target.sets) || 0;
+        const next = current + 1;
+        target.sets = formatSets(next);
+        syncEdit(target);
+      });
+      row1.appendChild(btnAddSet);
+
+      // Reduce reps (dropdown 1–5)
+      const repBox = document.createElement("div");
+      const repLabel = document.createElement("span");
+      repLabel.textContent = "Reduce reps:";
+      repBox.appendChild(repLabel);
+
+      const sel = document.createElement("select");
+      [1,2,3,4,5].forEach(n => {
+        const opt = document.createElement("option");
+        opt.value = n; opt.text = n;
+        sel.appendChild(opt);
+      });
+      repBox.appendChild(sel);
+
+      const btnReduceReps = createButton("Apply", () => {
+        const dec = parseInt(sel.value,10);
+        const current = parseReps(target.reps);
+        if (current != null) {
+          const next = Math.max(1, current - dec);
+          target.reps = formatReps(next);
+          syncEdit(target);
+        }
+      });
+      repBox.appendChild(btnReduceReps);
+      row1.appendChild(repBox);
+
+      // Reduce weight (5,10,20)
+      const row2 = document.createElement("div");
+      row2.className = "row";
+
+      const wBox = document.createElement("div");
+      const wLabel = document.createElement("span");
+      wLabel.textContent = "Reduce weight:";
+      wBox.appendChild(wLabel);
+
+      [5,10,20].forEach(dec => {
+        const b = createButton(`-${dec}kg`, () => {
+          const w = parseKg(target.weight);
+          if (w != null) {
+            const next = Math.max(0, Math.round((w - dec) * 10) / 10);
+            target.weight = `${next}kg`;
+            syncEdit(target);
+          }
+        });
+        wBox.appendChild(b);
+      });
+      row2.appendChild(wBox);
+
+      // Specific: Quick-pick "Edit latest Chest Press" (if different)
+      const row3 = document.createElement("div");
+      row3.className = "row";
+
+      const btnEditChest = createButton("Edit Latest Chest Press", () => {
+        const chest = findLatestChestPress();
+        if (chest) {
+          // Save this chest entry into latest (24h) and re-render
+          saveLatestInput(chest);
+          renderLatestEditor();
+        } else {
+          alert("No Chest Press record found in current session.");
+        }
+      });
+      row3.appendChild(btnEditChest);
+
+      // Finish & refresh table
+      const btnApplyAndRefresh = createButton("Apply & Refresh Table", () => {
+        syncEdit(target);
+        renderTable();
+      });
+      row3.appendChild(btnApplyAndRefresh);
+
+      // Clear 24h cache
+      const btnClear = createButton("Clear 24h cache", () => {
+        clearLatestInput();
+        renderLatestEditor();
+      });
+      row3.appendChild(btnClear);
+
+      latestEditorContainer.appendChild(row1);
+      latestEditorContainer.appendChild(row2);
+      latestEditorContainer.appendChild(row3);
+    }
+
+    // Ensure our edit is reflected in logs (by id) and re-save to 24h slot
+    function syncEdit(edited) {
+      // Update in logs if present
+      const idx = logs.findIndex(e => e.id === edited.id);
+      if (idx >= 0) {
+        logs[idx] = { ...logs[idx], ...edited };
+      }
+      // Save as "latest" for the next 24h
+      saveLatestInput(edited);
+      // Repaint editor summary text & table
+      renderLatestEditor();
+      renderTable();
+    }
+
+    // ------------------ Boot ------------------
+    // If a 24h latest exists, seed it into our logs view as a reference row (optional)
+    (function preloadFrom24h(){
+      const latest = loadLatestInput();
+      if (latest && !logs.find(e => e.id === latest.id)) {
+        // Do not auto-inject into logs; we only keep a quick-edit panel.
+        // If you want it visible, uncomment next two lines:
+        // logs.push({ ...latest });
+        // renderTable();
+      }
+    })();
 
     start();
   </script>
