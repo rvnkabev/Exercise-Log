@@ -63,6 +63,7 @@
 
   <script>
     let log = {};
+    let mode = null; // 'swim' | 'heavy'
     const logs = [];
     const stepContainer = document.getElementById("stepContainer");
     const logTableContainer = document.getElementById("logTableContainer");
@@ -138,7 +139,7 @@
 
     function formatSetsLikeOriginal(oldSets, n) {
       if (typeof oldSets === "number") return n; // keep numeric if numeric before
-      return `${n} sets`;
+      return `${n} set${n === 1 ? "" : "s"}`;
     }
 
     function incrementSets(sets, delta) {
@@ -228,15 +229,15 @@
       const row = document.createElement("div");
       row.className = "row";
 
-      // +1 set → add a NEW record cloned from saved record, but with reps fixed to "1 reps"
+      // +1 set → add a NEW record that is the same as the saved record (duplicate)
       row.appendChild(createButton("+ 1 set", () => {
         const base = structuredClone(latest);
-        const newEntry = {
+        const duplicated = {
           ...base,
-          reps: "1 reps",
-          notes: base.notes ? `${base.notes} | +1 set (1 rep)` : "+1 set (1 rep)"
+          // optional note tag to show it's an additional set (doesn't ask notes)
+          notes: base.notes ? `${base.notes} | +1 set (duplicate)` : "+1 set (duplicate)"
         };
-        commitNewFromLatest(newEntry);
+        commitNewFromLatest(duplicated);
       }));
 
       // Reduce reps → dropdown 1-5 (negative delta), new record cloned from saved record
@@ -254,26 +255,25 @@
       const repsBtn = createButton("Apply", () => {
         const delta = -parseInt(repsSelect.value, 10); // reduce
         const base = structuredClone(latest);
-        const newEntry = {
+        const modified = {
           ...base,
           reps: changeRepsValue(base.reps, delta),
           notes: base.notes ? `${base.notes} | reduce reps ${-delta}` : `reduce reps ${-delta}`
         };
-        commitNewFromLatest(newEntry);
+        commitNewFromLatest(modified);
       });
       repsWrap.appendChild(repsLabel);
       repsWrap.appendChild(repsSelect);
       repsWrap.appendChild(repsBtn);
       row.appendChild(repsWrap);
 
-      // Reduce weight → choose weight decrement; also ask reps delta (-5..+5, default 0); new record
+      // Reduce weight → choose weight decrement; also ask reps delta (-5..+5, default 0)
       const wtWrap = document.createElement("div");
       const wtLabel = document.createElement("div");
       wtLabel.className = "muted";
       wtLabel.textContent = "Reduce weight (ask reps Δ):";
       wtWrap.appendChild(wtLabel);
 
-      // reps delta select for weight path
       const repsDeltaLabel = document.createElement("div");
       repsDeltaLabel.className = "muted";
       repsDeltaLabel.textContent = "Reps Δ (-5..+5, default 0)";
@@ -288,12 +288,11 @@
       wtWrap.appendChild(repsDeltaLabel);
       wtWrap.appendChild(repsDeltaSelect);
 
-      // weight buttons (-5, -10, -20)
       [5,10,20].forEach(n => {
         wtWrap.appendChild(createButton(`-${n}`, () => {
           const repsDelta = parseInt(repsDeltaSelect.value, 10) || 0;
           const base = structuredClone(latest);
-          const newEntry = {
+          const modified = {
             ...base,
             weight: adjustWeight(base.weight, -n),
             reps: changeRepsValue(base.reps, repsDelta), // repsDelta can be -5..+5
@@ -301,7 +300,7 @@
               ? `${base.notes} | -${n}kg, reps Δ ${repsDelta}`
               : `-${n}kg, reps Δ ${repsDelta}`
           };
-          commitNewFromLatest(newEntry);
+          commitNewFromLatest(modified);
         }));
       });
       row.appendChild(wtWrap);
@@ -311,8 +310,8 @@
     }
 
     function commitNewFromLatest(newEntry) {
-      logs.push(newEntry);          // append as NEW record
-      saveLatestInput(newEntry);    // refresh 24h saved record to the newest
+      logs.push(newEntry);
+      saveLatestInput(newEntry);
       renderTable();
       renderLatestInput();
     }
@@ -326,17 +325,19 @@
         weight: "—",
         reps: "—",
         sets: "—",
-        notes: ""
+        notes: "" // heavy lifting will not prompt; stays empty
       };
       const div = document.createElement("div");
       div.innerHTML = "<strong>1. What did you do?</strong><br><br>";
       div.appendChild(createButton("Swim", () => {
+        mode = 'swim';
         log.part = "Swim";
         log.exercise = "—";
         log.equipment = "Pool";
         stepSwim();
       }));
       div.appendChild(createButton("Heavy Lift", () => {
+        mode = 'heavy';
         stepBodyPart();
       }));
       renderStep(div);
@@ -503,6 +504,7 @@
         finalizeLog();
       }));
       div.appendChild(createButton("Exercise", () => {
+        log.part = "Legs";
         stepLegPart();
       }));
       renderStep(div);
@@ -538,54 +540,23 @@
       renderStep(div);
     }
 
-    // For Heavy Lifts: after choosing reps, finalize immediately with sets=1, no notes
+    // For HEAVY: do NOT ask sets/notes; default sets = 1 and finalize immediately after reps
     function stepReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Reps</strong><br><br>";
       for (let i = 4; i <= 15; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = `${i} reps`;
-          // Determine if current flow is heavy lifting or swim
-          // If swim, reps would be "30m" and sets chosen earlier; here, for heavy lift we finalize:
-          if (log.part && log.part !== "Swim") {
-            log.sets = "1 set";     // default 1 set for heavy lifting
-            log.notes = "";         // no notes
+          if (mode === 'heavy') {
+            log.sets = "1 set";
+            // notes untouched (no prompt)
             finalizeLog();
           } else {
-            // fallback (shouldn't happen here)
-            stepSets();
+            // swim path continues to sets (already chosen in stepSwim)
+            finalizeLog();
           }
         }));
       }
-      renderStep(div);
-    }
-
-    // Kept for completeness; not used in heavy-lift path anymore
-    function stepSets() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>Sets</strong><br><br>";
-      for (let i = 1; i <= 5; i++) {
-        div.appendChild(createButton(i, () => {
-          log.sets = `${i} sets`;
-          stepNotes();
-        }));
-      }
-      renderStep(div);
-    }
-
-    // Kept for completeness; not used in heavy-lift path anymore
-    function stepNotes() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>Notes (optional)</strong><br><br>";
-      const input = document.createElement("input");
-      input.type = "text";
-      input.style.fontSize = "1em";
-      input.style.width = "90%";
-      input.placeholder = "e.g. 4 reps at 30kg";
-      input.onchange = () => log.notes = input.value;
-      div.appendChild(input);
-      div.appendChild(document.createElement("br"));
-      div.appendChild(createButton("Finish", finalizeLog));
       renderStep(div);
     }
 
