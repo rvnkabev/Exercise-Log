@@ -63,7 +63,7 @@
 
   <script>
     let log = {};
-    let mode = null; // 'swim' | 'heavy'
+    let mode = null; // 'swim' | 'heavy' | 'finger'
     const logs = [];
     const stepContainer = document.getElementById("stepContainer");
     const logTableContainer = document.getElementById("logTableContainer");
@@ -132,7 +132,7 @@
     -----------------------------*/
     function parseSets(sets) {
       if (sets == null) return null;
-      if (typeof sets === "number") return sets; // swim may use numeric sets
+      if (typeof sets === "number") return sets; // swim/finger may use numeric sets
       const m = String(sets).match(/(\d+)/);
       return m ? parseInt(m[1], 10) : null;
     }
@@ -155,7 +155,7 @@
 
     function parseReps(reps) {
       if (!reps) return null;
-      // numeric pattern like "10 reps"; swim "30m" returns null
+      // numeric pattern like "10 reps"; swim/finger durations return null
       const m = String(reps).match(/(\d+)\s*reps/i);
       if (m) return parseInt(m[1], 10);
       return null;
@@ -163,7 +163,7 @@
 
     function changeRepsValue(reps, delta) {
       const n = parseReps(reps);
-      if (n == null) return reps; // can't change non-numeric reps (e.g., "30m")
+      if (n == null) return reps; // can't change non-numeric reps (e.g., "30m" or "30s")
       const nn = Math.max(1, n + delta); // delta may be negative or positive
       return `${nn} reps`;
     }
@@ -233,13 +233,13 @@
       const row = document.createElement("div");
       row.className = "row";
 
-      // +1 set → per instruction: add a record exactly the same as the saved record (no field changes)
+      // +1 set → duplicate the last entry exactly
       row.appendChild(createButton("+ 1 set", () => {
         const base = structuredClone(latest);
         commitNewFromLatest(base);
       }));
 
-      // Reduce reps → dropdown 1-5 (negative delta), new record cloned from saved record
+      // Reduce reps → dropdown 1-5 (negative delta)
       const repsWrap = document.createElement("div");
       const repsLabel = document.createElement("div");
       repsLabel.className = "muted";
@@ -252,7 +252,7 @@
         repsSelect.appendChild(opt);
       });
       const repsBtn = createButton("Apply", () => {
-        const delta = -parseInt(repsSelect.value, 10); // reduce
+        const delta = -parseInt(repsSelect.value, 10);
         const base = structuredClone(latest);
         const modified = { ...base, reps: changeRepsValue(base.reps, delta) };
         commitNewFromLatest(modified);
@@ -262,7 +262,7 @@
       repsWrap.appendChild(repsBtn);
       row.appendChild(repsWrap);
 
-      // Reduce weight → choose weight decrement; also ask reps delta (-5..+5, default 0)
+      // Reduce weight → choose decrement; also reps Δ (-5..+5)
       const wtWrap = document.createElement("div");
       const wtLabel = document.createElement("div");
       wtLabel.className = "muted";
@@ -290,7 +290,7 @@
           const modified = {
             ...base,
             weight: adjustWeight(base.weight, -n),
-            reps: changeRepsValue(base.reps, repsDelta) // repsDelta can be -5..+5
+            reps: changeRepsValue(base.reps, repsDelta)
           };
           commitNewFromLatest(modified);
         }));
@@ -317,7 +317,7 @@
         weight: "—",
         reps: "—",
         sets: "—",
-        notes: "" // heavy lifting does not prompt notes
+        notes: ""
       };
       const div = document.createElement("div");
       div.innerHTML = "<strong>1. What did you do?</strong><br><br>";
@@ -327,6 +327,13 @@
         log.exercise = "—";
         log.equipment = "Pool";
         stepSwim();
+      }));
+      div.appendChild(createButton("Finger Hang", () => {
+        mode = 'finger';
+        log.part = "Grip";
+        log.exercise = "Finger Hang";
+        log.equipment = "Hangboard";
+        stepFingerHangDuration();
       }));
       div.appendChild(createButton("Heavy Lift", () => {
         mode = 'heavy';
@@ -345,6 +352,31 @@
         div.appendChild(createButton(i, () => {
           log.reps = "30m";
           log.sets = i; // numeric sets for swim
+          finalizeLog();
+        }));
+      }
+      renderStep(div);
+    }
+
+    // New: Finger Hang flow (ask duration then sets)
+    function stepFingerHangDuration() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Finger Hang — Duration</strong><br><br>";
+      ["30s", "45s", "1 min"].forEach(label => {
+        div.appendChild(createButton(label, () => {
+          log.reps = label; // store as duration string
+          stepFingerHangSets();
+        }));
+      });
+      renderStep(div);
+    }
+
+    function stepFingerHangSets() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Sets</strong><br><br>";
+      for (let i = 1; i <= 12; i++) {
+        div.appendChild(createButton(i, () => {
+          log.sets = i; // numeric sets
           finalizeLog();
         }));
       }
@@ -377,6 +409,10 @@
       div.appendChild(createButton("Seat Row", () => {
         stepBackGrip("Seat Row");
       }));
+      // New: Pull Up entry point
+      div.appendChild(createButton("Pull Up", () => {
+        stepPullUp();
+      }));
       renderStep(div);
     }
 
@@ -386,13 +422,45 @@
       div.appendChild(createButton("Normal", () => {
         log.exercise = `${equipment} - Normal`;
         log.equipment = equipment;
-        stepWeight(["35kg", "42kg", "49kg", "56kg"]);
+        stepWeight(["35kg", "42kg", "49kg", "56kg", "63kg", "70kg", "77kg", "84kg", "91kg"]);
       }));
       div.appendChild(createButton("Close Grip", () => {
         log.exercise = `${equipment} - Close Grip`;
         log.equipment = equipment;
-        stepWeight(["35kg", "42kg", "49kg", "56kg"]);
+        stepWeight(["35kg", "42kg", "49kg", "56kg", "63kg", "70kg", "77kg", "84kg", "91kg"]);
       }));
+      renderStep(div);
+    }
+
+    // New: Pull Up flow (ask reps then sets, record bodyweight 72kg)
+    function stepPullUp() {
+      log.exercise = "Pull Up";
+      log.equipment = "Bar";
+      log.weight = "72kg"; // bodyweight record
+      stepPullUpReps();
+    }
+
+    function stepPullUpReps() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Pull Up — Reps</strong><br><br>";
+      for (let i = 1; i <= 25; i++) {
+        div.appendChild(createButton(i, () => {
+          log.reps = `${i} reps`;
+          stepPullUpSets();
+        }));
+      }
+      renderStep(div);
+    }
+
+    function stepPullUpSets() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Pull Up — Sets</strong><br><br>";
+      for (let i = 1; i <= 10; i++) {
+        div.appendChild(createButton(i, () => {
+          log.sets = `${i} sets`;
+          finalizeLog();
+        }));
+      }
       renderStep(div);
     }
 
@@ -531,7 +599,7 @@
       renderStep(div);
     }
 
-    // For HEAVY: do NOT ask sets/notes; default sets = 1 (store as "1 sets") and finalize after reps
+    // For HEAVY default: do NOT ask sets/notes; default sets = 1 and finalize after reps
     function stepReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Reps</strong><br><br>";
