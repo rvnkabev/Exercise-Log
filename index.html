@@ -317,9 +317,7 @@
         weight: "—",
         reps: "—",
         sets: "—",
-        notes: "",
-        tut: "—",
-        dropSet: "—"
+        notes: ""
       };
       const div = document.createElement("div");
       div.innerHTML = "<strong>1. What did you do?</strong><br><br>";
@@ -629,7 +627,7 @@
         log.exercise = "Crunch";
         log.equipment = "Bodyweight";
         log.weight = "—";
-        stepReps(); // reps 4–15 (you can treat as working sets)
+        stepReps(); // reps 4–15
       }));
 
       div.appendChild(createButton("Leg Raise", () => {
@@ -654,7 +652,73 @@
       renderStep(div);
     }
 
-    // For HEAVY: 選完 reps 之後再進入 TUT / Drop Set page
+    // NEW PAGE: Heavy Lift extra info (TUT set + Drop set)
+    function stepHeavyExtras() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Set Details</strong><br><br>";
+
+      // defaults
+      let selectedTut = "103";
+      let selectedDrop = "No";
+
+      // TUT section
+      const tutLabel = document.createElement("div");
+      tutLabel.textContent = "TUT set (103 / 101)";
+      const tutDisplay = document.createElement("div");
+      tutDisplay.className = "muted";
+      tutDisplay.textContent = "Selected: 103 (default)";
+      div.appendChild(tutLabel);
+      div.appendChild(tutDisplay);
+
+      div.appendChild(createButton("103", () => {
+        selectedTut = "103";
+        tutDisplay.textContent = "Selected: 103";
+      }));
+      div.appendChild(createButton("101", () => {
+        selectedTut = "101";
+        tutDisplay.textContent = "Selected: 101";
+      }));
+
+      // Drop set section
+      const dropLabel = document.createElement("div");
+      dropLabel.style.marginTop = "20px";
+      dropLabel.textContent = "Drop set (Yes / No)";
+      const dropDisplay = document.createElement("div");
+      dropDisplay.className = "muted";
+      dropDisplay.textContent = "Selected: No (default)";
+      div.appendChild(dropLabel);
+      div.appendChild(dropDisplay);
+
+      div.appendChild(createButton("Yes", () => {
+        selectedDrop = "Yes";
+        dropDisplay.textContent = "Selected: Yes";
+      }));
+      div.appendChild(createButton("No", () => {
+        selectedDrop = "No";
+        dropDisplay.textContent = "Selected: No";
+      }));
+
+      // Confirm button
+      const saveBtn = createButton("Save Set", () => {
+        const extra = `TUT:${selectedTut}, Drop:${selectedDrop}`;
+        if (log.notes && log.notes.length > 0) {
+          log.notes += " | " + extra;
+        } else {
+          log.notes = extra;
+        }
+        if (!log.sets || log.sets === "—") {
+          log.sets = "1 sets";
+        }
+        finalizeLog();
+      });
+      saveBtn.style.display = "block";
+      saveBtn.style.marginTop = "30px";
+      div.appendChild(saveBtn);
+
+      renderStep(div);
+    }
+
+    // For HEAVY default: after reps, go to HeavyExtras page
     function stepReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Reps</strong><br><br>";
@@ -662,58 +726,14 @@
         div.appendChild(createButton(i, () => {
           log.reps = `${i} reps`;
           if (mode === 'heavy') {
-            log.sets = "1 sets"; // heavy default
-            stepHeavyExtras();  // NEW PAGE: TUT + Drop Set
+            log.sets = "1 sets"; // store pluralized for export standard
+            // 新增：進入 TUT / Drop Set 頁面
+            stepHeavyExtras();
           } else {
             finalizeLog();
           }
         }));
       }
-      renderStep(div);
-    }
-
-    // NEW: Heavy lifting extra page (TUT + Drop Set)
-    function stepHeavyExtras() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>Tempo / TUT & Drop Set</strong><br><br>";
-
-      // TUT select
-      const tutLabel = document.createElement("div");
-      tutLabel.className = "muted";
-      tutLabel.textContent = "TUT (Tempo):";
-      const tutSelect = document.createElement("select");
-      ["103", "101"].forEach((tempo, idx) => {
-        const opt = document.createElement("option");
-        opt.value = tempo;
-        opt.textContent = tempo;
-        if (idx === 0) opt.selected = true; // default 103
-        tutSelect.appendChild(opt);
-      });
-
-      div.appendChild(tutLabel);
-      div.appendChild(tutSelect);
-      div.appendChild(document.createElement("br"));
-      div.appendChild(document.createElement("br"));
-
-      const dropLabel = document.createElement("div");
-      dropLabel.className = "muted";
-      dropLabel.textContent = "Drop set?";
-      div.appendChild(dropLabel);
-
-      // Drop set N
-      div.appendChild(createButton("No", () => {
-        log.tut = tutSelect.value || "103";
-        log.dropSet = "N";
-        finalizeLog();
-      }));
-
-      // Drop set Y
-      div.appendChild(createButton("Yes", () => {
-        log.tut = tutSelect.value || "103";
-        log.dropSet = "Y";
-        finalizeLog();
-      }));
-
       renderStep(div);
     }
 
@@ -729,7 +749,6 @@
        Export formatting (standard)
        Example:
        2025/9/18, Chest, Flat Smith Press, Smith Machine, 80kg, 8reps, 1 sets
-       （為避免影響現有 Shortcut，這裡保持不包含 TUT / Drop Set）
     -----------------------------*/
     function exportLineStandard(e) {
       const date = e.date || "";
@@ -757,7 +776,7 @@
       table.innerHTML = `
         <tr>
           <th>Date</th><th>Body Part</th><th>Exercise</th><th>Equipment</th>
-          <th>Weight</th><th>Reps</th><th>Sets</th><th>TUT</th><th>Drop Set</th><th>Notes</th>
+          <th>Weight</th><th>Reps</th><th>Sets</th><th>Notes</th>
         </tr>
         ${logs.map(e => `
           <tr>
@@ -768,8 +787,6 @@
             <td>${e.weight || "—"}</td>
             <td>${e.reps || "—"}</td>
             <td>${typeof e.sets === "number" ? formatSetsAlwaysPlural(e.sets) : (e.sets || "—")}</td>
-            <td>${e.tut || "—"}</td>
-            <td>${e.dropSet || "—"}</td>
             <td>${e.notes || ""}</td>
           </tr>
         `).join("")}
