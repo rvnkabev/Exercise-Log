@@ -63,7 +63,7 @@
 
   <script>
     let log = {};
-    let mode = null; // 'swim' | 'heavy' | 'finger'
+    let mode = null; // 'swim' | 'heavy' | 'finger' | 'stretch'
     const logs = [];
     const stepContainer = document.getElementById("stepContainer");
     const logTableContainer = document.getElementById("logTableContainer");
@@ -132,7 +132,7 @@
     -----------------------------*/
     function parseSets(sets) {
       if (sets == null) return null;
-      if (typeof sets === "number") return sets; // swim/finger may use numeric sets
+      if (typeof sets === "number") return sets; // swim/finger/stretch may use numeric sets
       const m = String(sets).match(/(\d+)/);
       return m ? parseInt(m[1], 10) : null;
     }
@@ -155,7 +155,6 @@
 
     function parseReps(reps) {
       if (!reps) return null;
-      // numeric pattern like "10 reps"; swim/finger durations return null
       const m = String(reps).match(/(\d+)\s*reps/i);
       if (m) return parseInt(m[1], 10);
       return null;
@@ -164,7 +163,7 @@
     function changeRepsValue(reps, delta) {
       const n = parseReps(reps);
       if (n == null) return reps; // can't change non-numeric reps (e.g., "30m" or "30s")
-      const nn = Math.max(1, n + delta); // delta may be negative or positive
+      const nn = Math.max(1, n + delta);
       return `${nn} reps`;
     }
 
@@ -178,8 +177,8 @@
 
     function adjustWeight(weight, deltaKg) {
       const w = parseWeightKg(weight);
-      if (w == null) return weight; // can't parse (e.g., "—" or swims)
-      const nw = Math.max(0, w + deltaKg); // deltaKg can be negative
+      if (w == null) return weight;
+      const nw = Math.max(0, w + deltaKg);
       const hadDecimal = /\d+\.\d+/.test(String(weight));
       const display = hadDecimal ? nw.toFixed(1) : String(Math.round(nw));
       return `${display}kg`;
@@ -209,7 +208,6 @@
         return;
       }
 
-      // Summary chips
       const sum = document.createElement("div");
       sum.style.marginBottom = "14px";
       sum.innerHTML = `
@@ -220,10 +218,10 @@
         <span class="pill"><span class="muted">Weight:</span> ${latest.weight || "—"}</span>
         <span class="pill"><span class="muted">Reps:</span> ${latest.reps || "—"}</span>
         <span class="pill"><span class="muted">Sets:</span> ${typeof latest.sets === "number" ? formatSetsAlwaysPlural(latest.sets) : (latest.sets || "—")}</span>
+        <span class="pill"><span class="muted">Notes:</span> ${latest.notes || "—"}</span>
       `;
       panel.appendChild(sum);
 
-      // Quick actions
       const header = document.createElement("div");
       header.className = "bold";
       header.style.marginBottom = "8px";
@@ -233,13 +231,11 @@
       const row = document.createElement("div");
       row.className = "row";
 
-      // +1 set → duplicate the last entry exactly
       row.appendChild(createButton("+ 1 set", () => {
         const base = structuredClone(latest);
         commitNewFromLatest(base);
       }));
 
-      // Reduce reps → dropdown 1-5 (negative delta)
       const repsWrap = document.createElement("div");
       const repsLabel = document.createElement("div");
       repsLabel.className = "muted";
@@ -262,7 +258,6 @@
       repsWrap.appendChild(repsBtn);
       row.appendChild(repsWrap);
 
-      // Reduce weight → choose decrement; also reps Δ (-5..+5)
       const wtWrap = document.createElement("div");
       const wtLabel = document.createElement("div");
       wtLabel.className = "muted";
@@ -321,6 +316,7 @@
       };
       const div = document.createElement("div");
       div.innerHTML = "<strong>1. What did you do?</strong><br><br>";
+
       div.appendChild(createButton("Swim", () => {
         mode = 'swim';
         log.part = "Swim";
@@ -328,6 +324,7 @@
         log.equipment = "Pool";
         stepSwim();
       }));
+
       div.appendChild(createButton("Finger Hang", () => {
         mode = 'finger';
         log.part = "Grip";
@@ -335,13 +332,19 @@
         log.equipment = "Hangboard";
         stepFingerHangDuration();
       }));
+
       div.appendChild(createButton("Heavy Lift", () => {
         mode = 'heavy';
         stepBodyPart();
       }));
-      renderStep(div);
 
-      // Render latest input panel on load
+      /* NEW: Stretch mode */
+      div.appendChild(createButton("Stretch", () => {
+        mode = 'stretch';
+        stepStretch();
+      }));
+
+      renderStep(div);
       renderLatestInput();
     }
 
@@ -358,13 +361,12 @@
       renderStep(div);
     }
 
-    // New: Finger Hang flow (ask duration then sets)
     function stepFingerHangDuration() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Finger Hang — Duration</strong><br><br>";
       ["30s", "45s", "1 min"].forEach(label => {
         div.appendChild(createButton(label, () => {
-          log.reps = label; // store as duration string
+          log.reps = label;
           stepFingerHangSets();
         }));
       });
@@ -376,13 +378,49 @@
       div.innerHTML = "<strong>Sets</strong><br><br>";
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
-          log.sets = i; // numeric sets
+          log.sets = i;
           finalizeLog();
         }));
       }
       renderStep(div);
     }
 
+    /* ----------------------------
+       NEW: Stretch pages
+    -----------------------------*/
+    function stepStretch() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Stretch - Select</strong><br><br>";
+
+      div.appendChild(createButton("Calf", () => {
+        log.part = "Stretch";
+        log.exercise = "Calf Stretch";
+        log.equipment = "Bodyweight";
+        log.weight = "—";
+        stepCalfDuration();
+      }));
+
+      renderStep(div);
+    }
+
+    function stepCalfDuration() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Calf Stretch — Duration</strong><br><br>";
+
+      ["30s", "45s", "60s"].forEach(label => {
+        div.appendChild(createButton(label, () => {
+          log.reps = label;   // duration
+          log.sets = 1;       // default 1 set
+          finalizeLog();
+        }));
+      });
+
+      renderStep(div);
+    }
+
+    /* ----------------------------
+       Heavy lift flow
+    -----------------------------*/
     function stepBodyPart() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Select Body Part</strong><br><br>";
@@ -398,7 +436,6 @@
         stepLegType();
       }));
 
-      /* NEW: Biceps and Core options */
       div.appendChild(createButton("Biceps", () => {
         log.part = "Biceps";
         stepBicepsEquipment();
@@ -420,7 +457,6 @@
       div.appendChild(createButton("Seat Row", () => {
         stepBackGrip("Seat Row");
       }));
-      // New: Pull Up entry point
       div.appendChild(createButton("Pull Up", () => {
         stepPullUp();
       }));
@@ -443,11 +479,10 @@
       renderStep(div);
     }
 
-    // New: Pull Up flow (ask reps then sets, record bodyweight 72kg)
     function stepPullUp() {
       log.exercise = "Pull Up";
       log.equipment = "Bar";
-      log.weight = "72kg"; // bodyweight record
+      log.weight = "72kg";
       stepPullUpReps();
     }
 
@@ -566,6 +601,7 @@
       const div = document.createElement("div");
       div.innerHTML = "<strong>Leg - Type</strong><br><br>";
       div.appendChild(createButton("Stretch", () => {
+        // keep your original "Leg Stretch" quick log (optional)
         log.part = "Leg";
         log.exercise = "Stretch";
         log.equipment = "None";
@@ -598,7 +634,6 @@
       renderStep(div);
     }
 
-    /* NEW: Biceps flow */
     function stepBicepsEquipment() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Biceps - Exercise</strong><br><br>";
@@ -612,13 +647,12 @@
       div.appendChild(createButton("Cable Curl", () => {
         log.exercise = "Cable Curl";
         log.equipment = "Cable Machine";
-        stepWeight(getChestWeights("Cable Machine")); // reuse cable stack
+        stepWeight(getChestWeights("Cable Machine"));
       }));
 
       renderStep(div);
     }
 
-    /* NEW: Core flow */
     function stepCoreExercise() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Core - Exercise</strong><br><br>";
@@ -627,7 +661,7 @@
         log.exercise = "Crunch";
         log.equipment = "Bodyweight";
         log.weight = "—";
-        stepReps(); // reps 4–15
+        stepReps();
       }));
 
       div.appendChild(createButton("Leg Raise", () => {
@@ -652,16 +686,16 @@
       renderStep(div);
     }
 
-    // NEW PAGE: Heavy Lift extra info (TUT set + Drop set)
+    /* ----------------------------
+       Heavy Lift extra info (TUT + Drop set)
+    -----------------------------*/
     function stepHeavyExtras() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Set Details</strong><br><br>";
 
-      // defaults
       let selectedTut = "103";
       let selectedDrop = "No";
 
-      // TUT section
       const tutLabel = document.createElement("div");
       tutLabel.textContent = "TUT set (103 / 101)";
       const tutDisplay = document.createElement("div");
@@ -679,7 +713,6 @@
         tutDisplay.textContent = "Selected: 101";
       }));
 
-      // Drop set section
       const dropLabel = document.createElement("div");
       dropLabel.style.marginTop = "20px";
       dropLabel.textContent = "Drop set (Yes / No)";
@@ -698,7 +731,6 @@
         dropDisplay.textContent = "Selected: No";
       }));
 
-      // Confirm button
       const saveBtn = createButton("Save Set", () => {
         const extra = `TUT:${selectedTut}, Drop:${selectedDrop}`;
         if (log.notes && log.notes.length > 0) {
@@ -718,7 +750,6 @@
       renderStep(div);
     }
 
-    // For HEAVY default: after reps, go to HeavyExtras page
     function stepReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Reps</strong><br><br>";
@@ -726,9 +757,8 @@
         div.appendChild(createButton(i, () => {
           log.reps = `${i} reps`;
           if (mode === 'heavy') {
-            log.sets = "1 sets"; // store pluralized for export standard
-            // 新增：進入 TUT / Drop Set 頁面
-            stepHeavyExtras();
+            log.sets = "1 sets";
+            stepHeavyExtras(); // go to TUT/Drop page
           } else {
             finalizeLog();
           }
@@ -739,7 +769,7 @@
 
     function finalizeLog() {
       logs.push({ ...log });
-      saveLatestInput({ ...log }); // base for quick actions
+      saveLatestInput({ ...log });
       renderTable();
       renderLatestInput();
       start();
@@ -747,8 +777,9 @@
 
     /* ----------------------------
        Export formatting (standard)
+       Now includes Notes (TUT/Drop) at the end when present.
        Example:
-       2025/9/18, Chest, Flat Smith Press, Smith Machine, 80kg, 8reps, 1 sets
+       2025/9/18, Chest, Chest Press, Machine, 70kg, 8reps, 1 sets, TUT:103, Drop:No
     -----------------------------*/
     function exportLineStandard(e) {
       const date = e.date || "";
@@ -756,7 +787,7 @@
       const exercise = e.exercise || "";
       const equipment = e.equipment || "";
       const weight = e.weight || "";
-      // reps: remove space before "reps" if numeric
+
       let repsOut = "";
       const repsNum = parseReps(e.reps);
       if (repsNum != null) {
@@ -764,10 +795,14 @@
       } else {
         repsOut = e.reps || "";
       }
-      // sets: always "<n> sets"
+
       const nsets = parseSets(e.sets);
       const setsOut = nsets != null ? `${nsets} sets` : (e.sets || "");
 
+      const notes = (e.notes || "").trim();
+      if (notes) {
+        return `${date}, ${part}, ${exercise}, ${equipment}, ${weight}, ${repsOut}, ${setsOut}, ${notes}`;
+      }
       return `${date}, ${part}, ${exercise}, ${equipment}, ${weight}, ${repsOut}, ${setsOut}`;
     }
 
@@ -794,7 +829,6 @@
       logTableContainer.innerHTML = "";
       logTableContainer.appendChild(table);
 
-      // Build export summary in the requested standard format
       const summary = logs.map(exportLineStandard).join("\n");
       const encoded = encodeURIComponent(summary);
       const shortcutURL = `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
