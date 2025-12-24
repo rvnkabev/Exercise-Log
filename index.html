@@ -261,7 +261,7 @@
       const wtWrap = document.createElement("div");
       const wtLabel = document.createElement("div");
       wtLabel.className = "muted";
-      wtLabel.textContent = "Reduce weight (ask reps Δ):";
+      wtLabel.textContent = "Adjust weight (ask reps Δ):";
       wtWrap.appendChild(wtLabel);
 
       const repsDeltaLabel = document.createElement("div");
@@ -278,18 +278,21 @@
       wtWrap.appendChild(repsDeltaLabel);
       wtWrap.appendChild(repsDeltaSelect);
 
-      [5,10,20].forEach(n => {
-        wtWrap.appendChild(createButton(`-${n}`, () => {
+      // UPDATED: add -2 -4 -6 +2 +4 +6 buttons
+      [-6, -4, -2, 2, 4, 6].forEach(delta => {
+        const label = delta > 0 ? `+${delta}` : `${delta}`;
+        wtWrap.appendChild(createButton(label, () => {
           const repsDelta = parseInt(repsDeltaSelect.value, 10) || 0;
           const base = structuredClone(latest);
           const modified = {
             ...base,
-            weight: adjustWeight(base.weight, -n),
+            weight: adjustWeight(base.weight, delta),
             reps: changeRepsValue(base.reps, repsDelta)
           };
           commitNewFromLatest(modified);
         }));
       });
+
       row.appendChild(wtWrap);
 
       panel.appendChild(row);
@@ -570,16 +573,26 @@
       div.appendChild(createButton("Machine", () => {
         const machineDiv = document.createElement("div");
         machineDiv.innerHTML = "<strong>Machine Chest</strong><br><br>";
+
         machineDiv.appendChild(createButton("Chest Press", () => {
           log.exercise = "Chest Press";
           log.equipment = "Machine";
           stepWeight(["70kg"]);
         }));
+
+        // ADDED: Inclined Press into chest - machine
+        machineDiv.appendChild(createButton("Incline Chest Press", () => {
+          log.exercise = "Incline Chest Press";
+          log.equipment = "Machine";
+          stepWeight(["70kg"]);
+        }));
+
         machineDiv.appendChild(createButton("Machine Fly", () => {
           log.exercise = "Machine Fly";
           log.equipment = "Machine";
           stepWeight(["35kg"]);
         }));
+
         renderStep(machineDiv);
       }));
 
