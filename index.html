@@ -184,13 +184,14 @@
       return `${display}kg`;
     }
 
-    function appendNote(key, value) {
-      const extra = `${key}:${value}`;
-      if (log.notes && log.notes.trim().length > 0) {
-        log.notes += " | " + extra;
-      } else {
-        log.notes = extra;
-      }
+    function addOrReplaceNotePrefix(existing, prefix, value) {
+      // keeps other notes, replaces the first "prefix:<...>" chunk if present
+      const notes = (existing || "").trim();
+      const re = new RegExp(`(?:^|\\s*\\|\\s*)${prefix}:[^|]*`, "i");
+      const part = `${prefix}:${value}`;
+      if (!notes) return part;
+      if (re.test(notes)) return notes.replace(re, (m) => m.startsWith(prefix) ? part : m.replace(/^[\s|]+/, " | ") + part);
+      return `${notes} | ${part}`;
     }
 
     /* --------------------------------------
@@ -337,12 +338,14 @@
         stepSwim();
       }));
 
+      // UPDATED: Finger Hang flow now asks Weight -> Time -> Depth -> Sets
       div.appendChild(createButton("Finger Hang", () => {
         mode = 'finger';
         log.part = "Grip";
         log.exercise = "Finger Hang";
         log.equipment = "Hangboard";
-        stepFingerHangDuration();
+        log.sets = 1; // default 1 set unless you change it later
+        stepFingerHangWeight(); // NEW (sequence starts here)
       }));
 
       div.appendChild(createButton("Heavy Lift", () => {
@@ -350,6 +353,7 @@
         stepBodyPart();
       }));
 
+      /* Stretch mode */
       div.appendChild(createButton("Stretch", () => {
         mode = 'stretch';
         stepStretch();
@@ -373,39 +377,41 @@
     }
 
     /* ----------------------------
-       UPDATED: Finger Hang flow
-       Duration -> Weight -> Depth -> Sets
+       NEW: Finger Hang pages
+       Sequence: weight -> time -> depth -> sets
     -----------------------------*/
-    function stepFingerHangDuration() {
-      const div = document.createElement("div");
-      div.innerHTML = "<strong>Finger Hang — Duration</strong><br><br>";
-      ["30s", "45s", "1 min"].forEach(label => {
-        div.appendChild(createButton(label, () => {
-          log.reps = label;
-          stepFingerHangWeight();
-        }));
-      });
-      renderStep(div);
-    }
-
     function stepFingerHangWeight() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Finger Hang — Weight</strong><br><br>";
 
-      // Default: bodyweight
-      div.appendChild(createButton("Bodyweight", () => {
-        log.weight = "Bodyweight";
-        stepFingerHangDepth();
+      // Bodyweight default (72kg)
+      div.appendChild(createButton("Bodyweight (72kg)", () => {
+        log.weight = "72kg";
+        log.notes = addOrReplaceNotePrefix(log.notes, "Load", "Bodyweight");
+        stepFingerHangDuration();
       }));
 
-      // Dumbbell options
+      // Dumbbell weights
       ["50kg", "60kg", "70kg"].forEach(w => {
-        div.appendChild(createButton(w, () => {
+        div.appendChild(createButton(`${w} (Dumbbell)`, () => {
           log.weight = w;
-          stepFingerHangDepth();
+          log.notes = addOrReplaceNotePrefix(log.notes, "Load", "Dumbbell");
+          stepFingerHangDuration();
         }));
       });
 
+      renderStep(div);
+    }
+
+    function stepFingerHangDuration() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Finger Hang — Time</strong><br><br>";
+      ["30s", "45s", "1 min"].forEach(label => {
+        div.appendChild(createButton(label, () => {
+          log.reps = label; // duration stored in reps field
+          stepFingerHangDepth();
+        }));
+      });
       renderStep(div);
     }
 
@@ -413,11 +419,11 @@
       const div = document.createElement("div");
       div.innerHTML = "<strong>Finger Hang — Depth</strong><br><br>";
 
-      const opts = ["Full", "25mm", "20mm", "15mm", "10mm"];
-      opts.forEach(d => {
-        div.appendChild(createButton(d, () => {
-          // store depth in Notes to keep export format stable
-          appendNote("Depth", d);
+      // Default "Full"
+      const depths = ["Full", "25mm", "20mm", "15mm", "10mm"];
+      depths.forEach(d => {
+        div.appendChild(createButton(d === "Full" ? "Full (default)" : d, () => {
+          log.notes = addOrReplaceNotePrefix(log.notes, "Depth", d);
           stepFingerHangSets();
         }));
       });
@@ -427,10 +433,10 @@
 
     function stepFingerHangSets() {
       const div = document.createElement("div");
-      div.innerHTML = "<strong>Sets</strong><br><br>";
+      div.innerHTML = "<strong>Finger Hang — Sets</strong><br><br>";
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
-          log.sets = i; // numeric sets for finger hang
+          log.sets = i; // numeric sets
           finalizeLog();
         }));
       }
@@ -438,7 +444,7 @@
     }
 
     /* ----------------------------
-       Stretch pages
+       NEW: Stretch pages
     -----------------------------*/
     function stepStretch() {
       const div = document.createElement("div");
@@ -837,9 +843,9 @@
 
     /* ----------------------------
        Export formatting (standard)
-       Now includes Notes (TUT/Drop/Depth) at the end when present.
+       Includes Notes at the end when present.
        Example:
-       2025/9/18, Grip, Finger Hang, Hangboard, Bodyweight, 30s, 3 sets, Depth:25mm
+       2025/9/18, Chest, Chest Press, Machine, 70kg, 8reps, 1 sets, TUT:103, Drop:No
     -----------------------------*/
     function exportLineStandard(e) {
       const date = e.date || "";
