@@ -184,6 +184,15 @@
       return `${display}kg`;
     }
 
+    function appendNote(key, value) {
+      const extra = `${key}:${value}`;
+      if (log.notes && log.notes.trim().length > 0) {
+        log.notes += " | " + extra;
+      } else {
+        log.notes = extra;
+      }
+    }
+
     /* --------------------------------------
        Latest Input Panel + Quick Next Steps
     ---------------------------------------*/
@@ -278,7 +287,7 @@
       wtWrap.appendChild(repsDeltaLabel);
       wtWrap.appendChild(repsDeltaSelect);
 
-      // UPDATED: add -2 -4 -6 +2 +4 +6 buttons
+      // add -2 -4 -6 +2 +4 +6 buttons
       [-6, -4, -2, 2, 4, 6].forEach(delta => {
         const label = delta > 0 ? `+${delta}` : `${delta}`;
         wtWrap.appendChild(createButton(label, () => {
@@ -341,7 +350,6 @@
         stepBodyPart();
       }));
 
-      /* NEW: Stretch mode */
       div.appendChild(createButton("Stretch", () => {
         mode = 'stretch';
         stepStretch();
@@ -364,15 +372,56 @@
       renderStep(div);
     }
 
+    /* ----------------------------
+       UPDATED: Finger Hang flow
+       Duration -> Weight -> Depth -> Sets
+    -----------------------------*/
     function stepFingerHangDuration() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Finger Hang — Duration</strong><br><br>";
       ["30s", "45s", "1 min"].forEach(label => {
         div.appendChild(createButton(label, () => {
           log.reps = label;
+          stepFingerHangWeight();
+        }));
+      });
+      renderStep(div);
+    }
+
+    function stepFingerHangWeight() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Finger Hang — Weight</strong><br><br>";
+
+      // Default: bodyweight
+      div.appendChild(createButton("Bodyweight", () => {
+        log.weight = "Bodyweight";
+        stepFingerHangDepth();
+      }));
+
+      // Dumbbell options
+      ["50kg", "60kg", "70kg"].forEach(w => {
+        div.appendChild(createButton(w, () => {
+          log.weight = w;
+          stepFingerHangDepth();
+        }));
+      });
+
+      renderStep(div);
+    }
+
+    function stepFingerHangDepth() {
+      const div = document.createElement("div");
+      div.innerHTML = "<strong>Finger Hang — Depth</strong><br><br>";
+
+      const opts = ["Full", "25mm", "20mm", "15mm", "10mm"];
+      opts.forEach(d => {
+        div.appendChild(createButton(d, () => {
+          // store depth in Notes to keep export format stable
+          appendNote("Depth", d);
           stepFingerHangSets();
         }));
       });
+
       renderStep(div);
     }
 
@@ -381,7 +430,7 @@
       div.innerHTML = "<strong>Sets</strong><br><br>";
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
-          log.sets = i;
+          log.sets = i; // numeric sets for finger hang
           finalizeLog();
         }));
       }
@@ -389,7 +438,7 @@
     }
 
     /* ----------------------------
-       NEW: Stretch pages
+       Stretch pages
     -----------------------------*/
     function stepStretch() {
       const div = document.createElement("div");
@@ -580,7 +629,6 @@
           stepWeight(["70kg"]);
         }));
 
-        // ADDED: Inclined Press into chest - machine
         machineDiv.appendChild(createButton("Incline Chest Press", () => {
           log.exercise = "Incline Chest Press";
           log.equipment = "Machine";
@@ -614,7 +662,6 @@
       const div = document.createElement("div");
       div.innerHTML = "<strong>Leg - Type</strong><br><br>";
       div.appendChild(createButton("Stretch", () => {
-        // keep your original "Leg Stretch" quick log (optional)
         log.part = "Leg";
         log.exercise = "Stretch";
         log.equipment = "None";
@@ -790,9 +837,9 @@
 
     /* ----------------------------
        Export formatting (standard)
-       Now includes Notes (TUT/Drop) at the end when present.
+       Now includes Notes (TUT/Drop/Depth) at the end when present.
        Example:
-       2025/9/18, Chest, Chest Press, Machine, 70kg, 8reps, 1 sets, TUT:103, Drop:No
+       2025/9/18, Grip, Finger Hang, Hangboard, Bodyweight, 30s, 3 sets, Depth:25mm
     -----------------------------*/
     function exportLineStandard(e) {
       const date = e.date || "";
