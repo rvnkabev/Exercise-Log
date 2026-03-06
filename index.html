@@ -392,7 +392,7 @@
       }));
 
       // Dumbbell weights
-      ["50kg", "60kg", "70kg"].forEach(w => {
+      ["50lb (22kb)", "60lb (27kg)", "70lb (32kg)"].forEach(w => {
         div.appendChild(createButton(`${w} (Dumbbell)`, () => {
           log.weight = w;
           log.notes = addOrReplaceNotePrefix(log.notes, "Load", "Dumbbell");
