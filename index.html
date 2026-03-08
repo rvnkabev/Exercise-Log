@@ -32,6 +32,18 @@
       background: #fafafa;
       font-size: 0.6em;
     }
+    .latest-item {
+      border: 1px solid #ddd;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: #fff;
+    }
+    .latest-item-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+      font-size: 1em;
+    }
     .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .row > * { flex: 0 0 auto; }
     select { font-size: 1em; padding: 10px; }
@@ -46,6 +58,7 @@
     }
     .muted { color: #666; }
     .bold { font-weight: bold; }
+    .section-gap { margin-top: 16px; }
   </style>
 </head>
 <body>
@@ -55,7 +68,7 @@
   <!-- Input step flow -->
   <div id="stepContainer" class="step"></div>
 
-  <!-- Latest input (24h) panel + quick actions -->
+  <!-- Latest input history + quick actions -->
   <div id="latestContainer"></div>
 
   <!-- Logs table -->
@@ -98,33 +111,45 @@
     }
 
     /* ----------------------------
-       Latest Input (24h) storage
+       Latest Input history (24h, latest 2)
     -----------------------------*/
-    const LATEST_KEY = "exercise_logger_latest_input";
+    const LATEST_KEY = "exercise_logger_latest_inputs_v2";
+    const LATEST_MAX_ITEMS = 2;
 
     function saveLatestInput(entry) {
-      const payload = { entry, ts: Date.now() };
-      localStorage.setItem(LATEST_KEY, JSON.stringify(payload));
+      const history = loadLatestInputs();
+      history.unshift({ entry, ts: Date.now() });
+      const trimmed = history.slice(0, LATEST_MAX_ITEMS);
+      localStorage.setItem(LATEST_KEY, JSON.stringify(trimmed));
     }
 
-    function loadLatestInput() {
+    function loadLatestInputs() {
       try {
         const raw = localStorage.getItem(LATEST_KEY);
-        if (!raw) return null;
+        if (!raw) return [];
         const payload = JSON.parse(raw);
-        const maxAge = 24 * 60 * 60 * 1000; // 24h
-        if ((Date.now() - payload.ts) > maxAge) {
+        if (!Array.isArray(payload)) {
           localStorage.removeItem(LATEST_KEY);
-          return null;
+          return [];
         }
-        return payload.entry;
+
+        const maxAge = 24 * 60 * 60 * 1000; // 24h
+        const now = Date.now();
+        const filtered = payload
+          .filter(item => item && item.entry && typeof item.ts === "number" && (now - item.ts) <= maxAge)
+          .sort((a, b) => b.ts - a.ts)
+          .slice(0, LATEST_MAX_ITEMS);
+
+        localStorage.setItem(LATEST_KEY, JSON.stringify(filtered));
+        return filtered;
       } catch (e) {
-        return null;
+        localStorage.removeItem(LATEST_KEY);
+        return [];
       }
     }
 
     function clearLatestIfExpired() {
-      loadLatestInput(); // already clears if expired
+      loadLatestInputs(); // already clears expired items
     }
 
     /* ----------------------------
@@ -194,6 +219,10 @@
       return `${notes} | ${part}`;
     }
 
+    function cloneEntry(entry) {
+      return JSON.parse(JSON.stringify(entry));
+    }
+
     /* --------------------------------------
        Latest Input Panel + Quick Next Steps
     ---------------------------------------*/
@@ -201,15 +230,15 @@
       clearLatestIfExpired();
       latestContainer.innerHTML = "";
 
-      const latest = loadLatestInput();
+      const latestItems = loadLatestInputs();
 
       const panel = document.createElement("div");
       panel.className = "panel";
       const title = document.createElement("div");
-      title.innerHTML = "<div class='bold' style='font-size:1.2em;margin-bottom:10px;'>Input Record (saved for 24 hours)</div>";
+      title.innerHTML = "<div class='bold' style='font-size:1.2em;margin-bottom:10px;'>Input Record (saved for 24 hours, latest 2)</div>";
       panel.appendChild(title);
 
-      if (!latest) {
+      if (latestItems.length === 0) {
         const empty = document.createElement("div");
         empty.className = "muted";
         empty.textContent = "No recent input in the last 24 hours.";
@@ -218,94 +247,131 @@
         return;
       }
 
-      const sum = document.createElement("div");
-      sum.style.marginBottom = "14px";
-      sum.innerHTML = `
-        <span class="pill"><span class="muted">Date:</span> ${latest.date || "—"}</span>
-        <span class="pill"><span class="muted">Part:</span> ${latest.part || "—"}</span>
-        <span class="pill"><span class="muted">Exercise:</span> ${latest.exercise || "—"}</span>
-        <span class="pill"><span class="muted">Equip:</span> ${latest.equipment || "—"}</span>
-        <span class="pill"><span class="muted">Weight:</span> ${latest.weight || "—"}</span>
-        <span class="pill"><span class="muted">Reps:</span> ${latest.reps || "—"}</span>
-        <span class="pill"><span class="muted">Sets:</span> ${typeof latest.sets === "number" ? formatSetsAlwaysPlural(latest.sets) : (latest.sets || "—")}</span>
-        <span class="pill"><span class="muted">Notes:</span> ${latest.notes || "—"}</span>
-      `;
-      panel.appendChild(sum);
+      latestItems.forEach((item, index) => {
+        const latest = item.entry;
+        const block = document.createElement("div");
+        block.className = "latest-item";
 
-      const header = document.createElement("div");
-      header.className = "bold";
-      header.style.marginBottom = "8px";
-      header.textContent = "Next Step";
-      panel.appendChild(header);
+        const itemTitle = document.createElement("div");
+        itemTitle.className = "latest-item-title";
+        itemTitle.textContent = `Recent #${index + 1}`;
+        block.appendChild(itemTitle);
 
-      const row = document.createElement("div");
-      row.className = "row";
+        const sum = document.createElement("div");
+        sum.style.marginBottom = "14px";
+        sum.innerHTML = `
+          <span class="pill"><span class="muted">Date:</span> ${latest.date || "—"}</span>
+          <span class="pill"><span class="muted">Part:</span> ${latest.part || "—"}</span>
+          <span class="pill"><span class="muted">Exercise:</span> ${latest.exercise || "—"}</span>
+          <span class="pill"><span class="muted">Equip:</span> ${latest.equipment || "—"}</span>
+          <span class="pill"><span class="muted">Weight:</span> ${latest.weight || "—"}</span>
+          <span class="pill"><span class="muted">Reps:</span> ${latest.reps || "—"}</span>
+          <span class="pill"><span class="muted">Sets:</span> ${typeof latest.sets === "number" ? formatSetsAlwaysPlural(latest.sets) : (latest.sets || "—")}</span>
+          <span class="pill"><span class="muted">Notes:</span> ${latest.notes || "—"}</span>
+        `;
+        block.appendChild(sum);
 
-      row.appendChild(createButton("+ 1 set", () => {
-        const base = structuredClone(latest);
-        commitNewFromLatest(base);
-      }));
+        const quickPickTitle = document.createElement("div");
+        quickPickTitle.className = "bold";
+        quickPickTitle.style.marginBottom = "8px";
+        quickPickTitle.textContent = "Quick Select";
+        block.appendChild(quickPickTitle);
 
-      const repsWrap = document.createElement("div");
-      const repsLabel = document.createElement("div");
-      repsLabel.className = "muted";
-      repsLabel.textContent = "Reduce reps:";
-      const repsSelect = document.createElement("select");
-      [1,2,3,4,5].forEach(n => {
-        const opt = document.createElement("option");
-        opt.value = n;
-        opt.textContent = n;
-        repsSelect.appendChild(opt);
-      });
-      const repsBtn = createButton("Apply", () => {
-        const delta = -parseInt(repsSelect.value, 10);
-        const base = structuredClone(latest);
-        const modified = { ...base, reps: changeRepsValue(base.reps, delta) };
-        commitNewFromLatest(modified);
-      });
-      repsWrap.appendChild(repsLabel);
-      repsWrap.appendChild(repsSelect);
-      repsWrap.appendChild(repsBtn);
-      row.appendChild(repsWrap);
+        const quickPickRow = document.createElement("div");
+        quickPickRow.className = "row";
+        quickPickRow.appendChild(createButton("Use this record", () => {
+          commitNewFromLatest(cloneEntry(latest));
+        }));
+        quickPickRow.appendChild(createButton("+1 set", () => {
+          const base = cloneEntry(latest);
+          base.sets = incrementSets(base.sets, 1);
+          commitNewFromLatest(base);
+        }));
+        block.appendChild(quickPickRow);
 
-      const wtWrap = document.createElement("div");
-      const wtLabel = document.createElement("div");
-      wtLabel.className = "muted";
-      wtLabel.textContent = "Adjust weight (ask reps Δ):";
-      wtWrap.appendChild(wtLabel);
+        const header = document.createElement("div");
+        header.className = "bold section-gap";
+        header.style.marginBottom = "8px";
+        header.textContent = "Next Step";
+        block.appendChild(header);
 
-      const repsDeltaLabel = document.createElement("div");
-      repsDeltaLabel.className = "muted";
-      repsDeltaLabel.textContent = "Reps Δ (-5..+5, default 0)";
-      const repsDeltaSelect = document.createElement("select");
-      for (let n = -5; n <= 5; n++) {
-        const opt = document.createElement("option");
-        opt.value = n;
-        opt.textContent = n;
-        if (n === 0) opt.selected = true;
-        repsDeltaSelect.appendChild(opt);
-      }
-      wtWrap.appendChild(repsDeltaLabel);
-      wtWrap.appendChild(repsDeltaSelect);
+        const row = document.createElement("div");
+        row.className = "row";
 
-      // add -2 -4 -6 +2 +4 +6 buttons
-      [-6, -4, -2, 2, 4, 6].forEach(delta => {
-        const label = delta > 0 ? `+${delta}` : `${delta}`;
-        wtWrap.appendChild(createButton(label, () => {
+        const repsWrap = document.createElement("div");
+        const repsLabel = document.createElement("div");
+        repsLabel.className = "muted";
+        repsLabel.textContent = "Reduce reps:";
+        const repsSelect = document.createElement("select");
+        [1,2,3,4,5].forEach(n => {
+          const opt = document.createElement("option");
+          opt.value = n;
+          opt.textContent = n;
+          repsSelect.appendChild(opt);
+        });
+        const repsBtn = createButton("Apply", () => {
+          const delta = -parseInt(repsSelect.value, 10);
+          const base = cloneEntry(latest);
+          const modified = { ...base, reps: changeRepsValue(base.reps, delta) };
+          commitNewFromLatest(modified);
+        });
+        repsWrap.appendChild(repsLabel);
+        repsWrap.appendChild(repsSelect);
+        repsWrap.appendChild(repsBtn);
+        row.appendChild(repsWrap);
+
+        const wtWrap = document.createElement("div");
+        const wtLabel = document.createElement("div");
+        wtLabel.className = "muted";
+        wtLabel.textContent = "Adjust weight and reps:";
+        wtWrap.appendChild(wtLabel);
+
+        const weightDeltaLabel = document.createElement("div");
+        weightDeltaLabel.className = "muted";
+        weightDeltaLabel.textContent = "Weight Δ (-10, -5, 0, +5, +10)";
+        const weightDeltaSelect = document.createElement("select");
+        [-10, -5, 0, 5, 10].forEach(n => {
+          const opt = document.createElement("option");
+          opt.value = n;
+          opt.textContent = n > 0 ? `+${n}` : `${n}`;
+          if (n === 0) opt.selected = true;
+          weightDeltaSelect.appendChild(opt);
+        });
+        wtWrap.appendChild(weightDeltaLabel);
+        wtWrap.appendChild(weightDeltaSelect);
+
+        const repsDeltaLabel = document.createElement("div");
+        repsDeltaLabel.className = "muted";
+        repsDeltaLabel.textContent = "Reps Δ (-5..+5, default 0)";
+        const repsDeltaSelect = document.createElement("select");
+        for (let n = -5; n <= 5; n++) {
+          const opt = document.createElement("option");
+          opt.value = n;
+          opt.textContent = n > 0 ? `+${n}` : `${n}`;
+          if (n === 0) opt.selected = true;
+          repsDeltaSelect.appendChild(opt);
+        }
+        wtWrap.appendChild(repsDeltaLabel);
+        wtWrap.appendChild(repsDeltaSelect);
+
+        const applyWeightRepsBtn = createButton("Apply", () => {
+          const weightDelta = parseInt(weightDeltaSelect.value, 10) || 0;
           const repsDelta = parseInt(repsDeltaSelect.value, 10) || 0;
-          const base = structuredClone(latest);
+          const base = cloneEntry(latest);
           const modified = {
             ...base,
-            weight: adjustWeight(base.weight, delta),
+            weight: adjustWeight(base.weight, weightDelta),
             reps: changeRepsValue(base.reps, repsDelta)
           };
           commitNewFromLatest(modified);
-        }));
+        });
+        wtWrap.appendChild(applyWeightRepsBtn);
+
+        row.appendChild(wtWrap);
+        block.appendChild(row);
+        panel.appendChild(block);
       });
 
-      row.appendChild(wtWrap);
-
-      panel.appendChild(row);
       latestContainer.appendChild(panel);
     }
 
@@ -632,19 +698,34 @@
         machineDiv.appendChild(createButton("Chest Press", () => {
           log.exercise = "Chest Press";
           log.equipment = "Machine";
-          stepWeight(["70kg"]);
+          stepWeight([
+            "4.5kg", "9.1kg", "13.6kg", "18.1kg", "22.7kg", "27.2kg",
+            "31.8kg", "36.3kg", "40.8kg", "45.4kg", "49.9kg", "54.4kg",
+            "59.0kg", "63.5kg", "68.0kg", "72.6kg", "77.1kg", "81.6kg",
+            "86.2kg", "90.7kg", "95.3kg", "99.8kg", "104.3kg", "108.9kg"
+          ]);
         }));
 
         machineDiv.appendChild(createButton("Incline Chest Press", () => {
           log.exercise = "Incline Chest Press";
           log.equipment = "Machine";
-          stepWeight(["70kg"]);
+          stepWeight([
+            "4.5kg", "9.1kg", "13.6kg", "18.1kg", "22.7kg", "27.2kg",
+            "31.8kg", "36.3kg", "40.8kg", "45.4kg", "49.9kg", "54.4kg",
+            "59.0kg", "63.5kg", "68.0kg", "72.6kg", "77.1kg", "81.6kg",
+            "86.2kg", "90.7kg", "95.3kg", "99.8kg", "104.3kg", "108.9kg"
+          ]);
         }));
 
         machineDiv.appendChild(createButton("Machine Fly", () => {
           log.exercise = "Machine Fly";
           log.equipment = "Machine";
-          stepWeight(["35kg"]);
+          stepWeight([
+            "4.5kg", "9.1kg", "13.6kg", "18.1kg", "22.7kg", "27.2kg",
+            "31.8kg", "36.3kg", "40.8kg", "45.4kg", "49.9kg", "54.4kg",
+            "59.0kg", "63.5kg", "68.0kg", "72.6kg", "77.1kg", "81.6kg",
+            "86.2kg", "90.7kg", "95.3kg", "99.8kg", "104.3kg", "108.9kg"
+          ]);
         }));
 
         renderStep(machineDiv);
@@ -743,12 +824,74 @@
     function stepWeight(weightList) {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Select Weight</strong><br><br>";
+
       weightList.forEach(w => {
         div.appendChild(createButton(w, () => {
           log.weight = w;
           stepReps();
         }));
       });
+
+      const customWrap = document.createElement("div");
+      customWrap.className = "section-gap";
+      customWrap.style.marginTop = "24px";
+
+      const customTitle = document.createElement("div");
+      customTitle.className = "bold";
+      customTitle.style.marginBottom = "10px";
+      customTitle.textContent = "Custom Weight";
+      customWrap.appendChild(customTitle);
+
+      const row = document.createElement("div");
+      row.className = "row";
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.step = "0.1";
+      input.min = "0";
+      input.placeholder = "Enter weight";
+      input.style.fontSize = "1em";
+      input.style.padding = "14px";
+      input.style.width = "220px";
+
+      const unitSelect = document.createElement("select");
+      ["kg", "lb"].forEach(unit => {
+        const opt = document.createElement("option");
+        opt.value = unit;
+        opt.textContent = unit;
+        unitSelect.appendChild(opt);
+      });
+
+      const addBtn = createButton("Use custom weight", () => {
+        const raw = input.value.trim();
+        if (!raw) {
+          alert("Please enter a weight.");
+          return;
+        }
+
+        const num = parseFloat(raw);
+        if (isNaN(num) || num < 0) {
+          alert("Please enter a valid weight.");
+          return;
+        }
+
+        const formatted = Number.isInteger(num) ? String(num) : String(num);
+        log.weight = `${formatted}${unitSelect.value}`;
+        stepReps();
+      });
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          addBtn.click();
+        }
+      });
+
+      row.appendChild(input);
+      row.appendChild(unitSelect);
+      row.appendChild(addBtn);
+      customWrap.appendChild(row);
+      div.appendChild(customWrap);
+
       renderStep(div);
     }
 
