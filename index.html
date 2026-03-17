@@ -59,6 +59,16 @@
     .muted { color: #666; }
     .bold { font-weight: bold; }
     .section-gap { margin-top: 16px; }
+    .pinned-badge {
+      display: inline-block;
+      padding: 8px 14px;
+      margin: 4px;
+      border-radius: 999px;
+      background: #fff3cd;
+      border: 1px solid #e0c46c;
+      font-size: 0.8em;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -110,20 +120,34 @@
       return arr;
     }
 
+    function makeId() {
+      return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    }
+
     /* ----------------------------
-       Latest Input history (24h, latest 2)
+       Latest Input history
+       - latest 2
+       - normal items expire after 24h
+       - pinned items keep forever until unpinned
     -----------------------------*/
-    const LATEST_KEY = "exercise_logger_latest_inputs_v2";
+    const LATEST_KEY = "exercise_logger_latest_inputs_v3";
     const LATEST_MAX_ITEMS = 2;
 
     function saveLatestInput(entry) {
-      const history = loadLatestInputs();
-      history.unshift({ entry, ts: Date.now() });
-      const trimmed = history.slice(0, LATEST_MAX_ITEMS);
-      localStorage.setItem(LATEST_KEY, JSON.stringify(trimmed));
+      const history = loadLatestInputsRaw();
+
+      history.unshift({
+        id: makeId(),
+        entry,
+        ts: Date.now(),
+        pinned: false
+      });
+
+      const normalized = normalizeLatestHistory(history);
+      localStorage.setItem(LATEST_KEY, JSON.stringify(normalized));
     }
 
-    function loadLatestInputs() {
+    function loadLatestInputsRaw() {
       try {
         const raw = localStorage.getItem(LATEST_KEY);
         if (!raw) return [];
@@ -132,24 +156,63 @@
           localStorage.removeItem(LATEST_KEY);
           return [];
         }
-
-        const maxAge = 24 * 60 * 60 * 1000; // 24h
-        const now = Date.now();
-        const filtered = payload
-          .filter(item => item && item.entry && typeof item.ts === "number" && (now - item.ts) <= maxAge)
-          .sort((a, b) => b.ts - a.ts)
-          .slice(0, LATEST_MAX_ITEMS);
-
-        localStorage.setItem(LATEST_KEY, JSON.stringify(filtered));
-        return filtered;
+        return payload;
       } catch (e) {
         localStorage.removeItem(LATEST_KEY);
         return [];
       }
     }
 
+    function normalizeLatestHistory(history) {
+      const now = Date.now();
+      const maxAge = 24 * 60 * 60 * 1000;
+
+      const valid = history
+        .filter(item =>
+          item &&
+          item.entry &&
+          typeof item.ts === "number" &&
+          typeof item.id === "string"
+        )
+        .filter(item => item.pinned || (now - item.ts) <= maxAge)
+        .map(item => ({
+          id: item.id,
+          entry: item.entry,
+          ts: item.ts,
+          pinned: !!item.pinned
+        }))
+        .sort((a, b) => {
+          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+          return b.ts - a.ts;
+        })
+        .slice(0, LATEST_MAX_ITEMS);
+
+      return valid;
+    }
+
+    function loadLatestInputs() {
+      const history = loadLatestInputsRaw();
+      const normalized = normalizeLatestHistory(history);
+      localStorage.setItem(LATEST_KEY, JSON.stringify(normalized));
+      return normalized;
+    }
+
     function clearLatestIfExpired() {
-      loadLatestInputs(); // already clears expired items
+      loadLatestInputs();
+    }
+
+    function setLatestPinned(itemId, keepAlways) {
+      const history = loadLatestInputsRaw();
+      const updated = history.map(item => {
+        if (item.id === itemId) {
+          return { ...item, pinned: keepAlways };
+        }
+        return item;
+      });
+
+      const normalized = normalizeLatestHistory(updated);
+      localStorage.setItem(LATEST_KEY, JSON.stringify(normalized));
+      renderLatestInput();
     }
 
     /* ----------------------------
@@ -157,17 +220,17 @@
     -----------------------------*/
     function parseSets(sets) {
       if (sets == null) return null;
-      if (typeof sets === "number") return sets; // swim/finger/stretch may use numeric sets
+      if (typeof sets === "number") return sets;
       const m = String(sets).match(/(\d+)/);
       return m ? parseInt(m[1], 10) : null;
     }
 
     function formatSetsAlwaysPlural(n) {
-      return `${n} sets`; // always "sets", even for 1 (per export standard)
+      return `${n} sets`;
     }
 
     function formatSetsLikeOriginal(oldSets, n) {
-      if (typeof oldSets === "number") return n; // keep numeric if numeric before
+      if (typeof oldSets === "number") return n;
       return formatSetsAlwaysPlural(n);
     }
 
@@ -187,7 +250,7 @@
 
     function changeRepsValue(reps, delta) {
       const n = parseReps(reps);
-      if (n == null) return reps; // can't change non-numeric reps (e.g., "30m" or "30s")
+      if (n == null) return reps;
       const nn = Math.max(1, n + delta);
       return `${nn} reps`;
     }
@@ -210,12 +273,15 @@
     }
 
     function addOrReplaceNotePrefix(existing, prefix, value) {
-      // keeps other notes, replaces the first "prefix:<...>" chunk if present
       const notes = (existing || "").trim();
       const re = new RegExp(`(?:^|\\s*\\|\\s*)${prefix}:[^|]*`, "i");
       const part = `${prefix}:${value}`;
       if (!notes) return part;
-      if (re.test(notes)) return notes.replace(re, (m) => m.startsWith(prefix) ? part : m.replace(/^[\s|]+/, " | ") + part);
+      if (re.test(notes)) {
+        return notes.replace(re, (m) =>
+          m.startsWith(prefix) ? part : m.replace(/^[\s|]+/, " | ") + part
+        );
+      }
       return `${notes} | ${part}`;
     }
 
@@ -234,8 +300,9 @@
 
       const panel = document.createElement("div");
       panel.className = "panel";
+
       const title = document.createElement("div");
-      title.innerHTML = "<div class='bold' style='font-size:1.2em;margin-bottom:10px;'>Input Record (saved for 24 hours, latest 2)</div>";
+      title.innerHTML = "<div class='bold' style='font-size:1.2em;margin-bottom:10px;'>Input Record (latest 2; normal = 24h, keep always = until manually stopped)</div>";
       panel.appendChild(title);
 
       if (latestItems.length === 0) {
@@ -256,6 +323,13 @@
         itemTitle.className = "latest-item-title";
         itemTitle.textContent = `Recent #${index + 1}`;
         block.appendChild(itemTitle);
+
+        if (item.pinned) {
+          const badge = document.createElement("div");
+          badge.className = "pinned-badge";
+          badge.textContent = "Keep Always ON";
+          block.appendChild(badge);
+        }
 
         const sum = document.createElement("div");
         sum.style.marginBottom = "14px";
@@ -279,14 +353,27 @@
 
         const quickPickRow = document.createElement("div");
         quickPickRow.className = "row";
+
         quickPickRow.appendChild(createButton("Use this record", () => {
           commitNewFromLatest(cloneEntry(latest));
         }));
+
         quickPickRow.appendChild(createButton("+1 set", () => {
           const base = cloneEntry(latest);
           base.sets = incrementSets(base.sets, 1);
           commitNewFromLatest(base);
         }));
+
+        if (item.pinned) {
+          quickPickRow.appendChild(createButton("Stop keeping", () => {
+            setLatestPinned(item.id, false);
+          }));
+        } else {
+          quickPickRow.appendChild(createButton("Keep always", () => {
+            setLatestPinned(item.id, true);
+          }));
+        }
+
         block.appendChild(quickPickRow);
 
         const header = document.createElement("div");
@@ -404,14 +491,13 @@
         stepSwim();
       }));
 
-      // UPDATED: Finger Hang flow now asks Weight -> Time -> Depth -> Sets
       div.appendChild(createButton("Finger Hang", () => {
         mode = 'finger';
         log.part = "Grip";
         log.exercise = "Finger Hang";
         log.equipment = "Hangboard";
-        log.sets = 1; // default 1 set unless you change it later
-        stepFingerHangWeight(); // NEW (sequence starts here)
+        log.sets = 1;
+        stepFingerHangWeight();
       }));
 
       div.appendChild(createButton("Heavy Lift", () => {
@@ -419,7 +505,6 @@
         stepBodyPart();
       }));
 
-      /* Stretch mode */
       div.appendChild(createButton("Stretch", () => {
         mode = 'stretch';
         stepStretch();
@@ -435,7 +520,7 @@
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = "30m";
-          log.sets = i; // numeric sets for swim
+          log.sets = i;
           finalizeLog();
         }));
       }
@@ -443,21 +528,18 @@
     }
 
     /* ----------------------------
-       NEW: Finger Hang pages
-       Sequence: weight -> time -> depth -> sets
+       Finger Hang pages
     -----------------------------*/
     function stepFingerHangWeight() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Finger Hang — Weight</strong><br><br>";
 
-      // Bodyweight default (72kg)
       div.appendChild(createButton("Bodyweight (72kg)", () => {
         log.weight = "72kg";
         log.notes = addOrReplaceNotePrefix(log.notes, "Load", "Bodyweight");
         stepFingerHangDuration();
       }));
 
-      // Dumbbell weights
       ["50lb (22kb)", "60lb (27kg)", "70lb (32kg)"].forEach(w => {
         div.appendChild(createButton(`${w} (Dumbbell)`, () => {
           log.weight = w;
@@ -474,7 +556,7 @@
       div.innerHTML = "<strong>Finger Hang — Time</strong><br><br>";
       ["30s", "45s", "1 min"].forEach(label => {
         div.appendChild(createButton(label, () => {
-          log.reps = label; // duration stored in reps field
+          log.reps = label;
           stepFingerHangDepth();
         }));
       });
@@ -485,7 +567,6 @@
       const div = document.createElement("div");
       div.innerHTML = "<strong>Finger Hang — Depth</strong><br><br>";
 
-      // Default "Full"
       const depths = ["Full", "25mm", "20mm", "15mm", "10mm"];
       depths.forEach(d => {
         div.appendChild(createButton(d === "Full" ? "Full (default)" : d, () => {
@@ -502,7 +583,7 @@
       div.innerHTML = "<strong>Finger Hang — Sets</strong><br><br>";
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
-          log.sets = i; // numeric sets
+          log.sets = i;
           finalizeLog();
         }));
       }
@@ -510,7 +591,7 @@
     }
 
     /* ----------------------------
-       NEW: Stretch pages
+       Stretch pages
     -----------------------------*/
     function stepStretch() {
       const div = document.createElement("div");
@@ -533,8 +614,8 @@
 
       ["30s", "45s", "60s"].forEach(label => {
         div.appendChild(createButton(label, () => {
-          log.reps = label;   // duration
-          log.sets = 1;       // default 1 set
+          log.reps = label;
+          log.sets = 1;
           finalizeLog();
         }));
       });
@@ -559,7 +640,6 @@
       div.appendChild(createButton("Leg", () => {
         stepLegType();
       }));
-
       div.appendChild(createButton("Biceps", () => {
         log.part = "Biceps";
         stepBicepsEquipment();
@@ -896,7 +976,7 @@
     }
 
     /* ----------------------------
-       Heavy Lift extra info (TUT + Drop set)
+       Heavy Lift extra info
     -----------------------------*/
     function stepHeavyExtras() {
       const div = document.createElement("div");
@@ -967,7 +1047,7 @@
           log.reps = `${i} reps`;
           if (mode === 'heavy') {
             log.sets = "1 sets";
-            stepHeavyExtras(); // go to TUT/Drop page
+            stepHeavyExtras();
           } else {
             finalizeLog();
           }
@@ -985,10 +1065,7 @@
     }
 
     /* ----------------------------
-       Export formatting (standard)
-       Includes Notes at the end when present.
-       Example:
-       2025/9/18, Chest, Chest Press, Machine, 70kg, 8reps, 1 sets, TUT:103, Drop:No
+       Export formatting
     -----------------------------*/
     function exportLineStandard(e) {
       const date = e.date || "";
