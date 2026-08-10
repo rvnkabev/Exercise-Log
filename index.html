@@ -270,7 +270,7 @@
     */
     function runSaveToSuccessDaily() {
       const shortcutName = "SaveToSuccessDaily";
-
+      const text = `${getToday()}, Exercise`;
       const shortcutURL =
         `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}`;
 
