@@ -1067,398 +1067,60 @@
     /* ----------------------------
        Export formatting
     -----------------------------*/
-   <script>
-/* ----------------------------
-   Export formatting
------------------------------*/
-function exportLineStandard(e) {
-  const date = e.date || "";
-  const part = e.part || "";
-  const exercise = e.exercise || "";
-  const equipment = e.equipment || "";
-  const weight = e.weight || "";
+    function exportLineStandard(e) {
+      const date = e.date || "";
+      const part = e.part || "";
+      const exercise = e.exercise || "";
+      const equipment = e.equipment || "";
+      const weight = e.weight || "";
 
-  let repsOut = "";
-  const repsNum = parseReps(e.reps);
+      let repsOut = "";
+      const repsNum = parseReps(e.reps);
+      if (repsNum != null) {
+        repsOut = `${repsNum}reps`;
+      } else {
+        repsOut = e.reps || "";
+      }
 
-  if (repsNum != null) {
-    repsOut = `${repsNum}reps`;
-  } else {
-    repsOut = e.reps || "";
-  }
+      const nsets = parseSets(e.sets);
+      const setsOut = nsets != null ? `${nsets} sets` : (e.sets || "");
 
-  const nsets = parseSets(e.sets);
-  const setsOut =
-    nsets != null
-      ? `${nsets} sets`
-      : (e.sets || "");
-
-  const notes = (e.notes || "").trim();
-
-  if (notes) {
-    return `${date}, ${part}, ${exercise}, ${equipment}, ${weight}, ${repsOut}, ${setsOut}, ${notes}`;
-  }
-
-  return `${date}, ${part}, ${exercise}, ${equipment}, ${weight}, ${repsOut}, ${setsOut}`;
-}
-
-
-/* =========================================================
-   SuccessDaily — First Exercise Of The Day
-   =========================================================
-
-   Logic:
-
-   First Save today:
-       SaveToNotes
-            ↓
-       Return to Safari
-            ↓
-       SaveToSuccessDaily
-
-   Second / third / fourth Save today:
-       SaveToNotes only
-
-   Next day:
-       Automatically becomes first Save again
-========================================================= */
-
-const SUCCESS_DAILY_DATE_KEY =
-  "exercise_success_daily_last_date_v1";
-
-const SUCCESS_DAILY_PENDING_KEY =
-  "exercise_success_daily_pending_v1";
-
-const SUCCESS_DAILY_INPUT_KEY =
-  "exercise_success_daily_input_v1";
-
-
-/*
-  Return:
-
-  2026-08-10
-*/
-function getTodayStorageKey() {
-  const d = new Date();
-
-  const year = d.getFullYear();
-
-  const month = String(
-    d.getMonth() + 1
-  ).padStart(2, "0");
-
-  const day = String(
-    d.getDate()
-  ).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-
-/*
-  Check whether SuccessDaily is waiting
-  to be launched.
-
-  Normally this runs when the user
-  returns from SaveToNotes to Safari.
-*/
-function runPendingSuccessDaily() {
-
-  const today =
-    getTodayStorageKey();
-
-  const pendingDate =
-    localStorage.getItem(
-      SUCCESS_DAILY_PENDING_KEY
-    );
-
-  // Nothing waiting
-  if (pendingDate !== today) {
-    return;
-  }
-
-
-  const encoded =
-    localStorage.getItem(
-      SUCCESS_DAILY_INPUT_KEY
-    );
-
-  /*
-    IMPORTANT:
-
-    Clear pending BEFORE opening Shortcut.
-
-    Otherwise when user returns from
-    SaveToSuccessDaily, it could run again.
-  */
-  localStorage.removeItem(
-    SUCCESS_DAILY_PENDING_KEY
-  );
-
-  localStorage.removeItem(
-    SUCCESS_DAILY_INPUT_KEY
-  );
-
-
-  if (!encoded) {
-    return;
-  }
-
-
-  console.log(
-    "First exercise today → SaveToSuccessDaily"
-  );
-
-
-  const successDailyURL =
-    `shortcuts://run-shortcut?name=SaveToSuccessDaily&input=${encoded}`;
-
-
-  window.location.href =
-    successDailyURL;
-}
-
-
-/*
-  When Safari becomes visible again
-  after running SaveToNotes
-*/
-document.addEventListener(
-  "visibilitychange",
-  () => {
-
-    if (!document.hidden) {
-
-      setTimeout(() => {
-        runPendingSuccessDaily();
-      }, 400);
-
+      const notes = (e.notes || "").trim();
+      if (notes) {
+        return `${date}, ${part}, ${exercise}, ${equipment}, ${weight}, ${repsOut}, ${setsOut}, ${notes}`;
+      }
+      return `${date}, ${part}, ${exercise}, ${equipment}, ${weight}, ${repsOut}, ${setsOut}`;
     }
 
-  }
-);
-
-
-/*
-  Extra support for Safari page restore
-*/
-window.addEventListener(
-  "pageshow",
-  () => {
-
-    setTimeout(() => {
-      runPendingSuccessDaily();
-    }, 400);
-
-  }
-);
-
-
-/* ----------------------------
-   Render Table
------------------------------*/
-
-function renderTable() {
-
-  const table =
-    document.createElement("table");
-
-
-  table.innerHTML = `
-    <tr>
-      <th>Date</th>
-      <th>Body Part</th>
-      <th>Exercise</th>
-      <th>Equipment</th>
-      <th>Weight</th>
-      <th>Reps</th>
-      <th>Sets</th>
-      <th>Notes</th>
-    </tr>
-
-    ${logs.map(e => `
-      <tr>
-
-        <td>
-          ${e.date || "—"}
-        </td>
-
-        <td>
-          ${e.part || "—"}
-        </td>
-
-        <td>
-          ${e.exercise || "—"}
-        </td>
-
-        <td>
-          ${e.equipment || "—"}
-        </td>
-
-        <td>
-          ${e.weight || "—"}
-        </td>
-
-        <td>
-          ${e.reps || "—"}
-        </td>
-
-        <td>
-          ${
-            typeof e.sets === "number"
-              ? formatSetsAlwaysPlural(e.sets)
-              : (e.sets || "—")
-          }
-        </td>
-
-        <td>
-          ${e.notes || ""}
-        </td>
-
-      </tr>
-    `).join("")}
-  `;
-
-
-  logTableContainer.innerHTML =
-    "";
-
-  logTableContainer.appendChild(
-    table
-  );
-
-
-  /* ----------------------------
-     Prepare export text
-  -----------------------------*/
-
-  const summary =
-    logs
-      .map(exportLineStandard)
-      .join("\n");
-
-
-  const encoded =
-    encodeURIComponent(summary);
-
-
-  const shortcutURL =
-    `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
-
-
-  /* ----------------------------
-     Save Button
-  -----------------------------*/
-
-  const saveBtn =
-    createButton(
-      "Save to iPhone Notes",
-      () => {
-
-        const today =
-          getTodayStorageKey();
-
-
-        const lastSuccessDailyDate =
-          localStorage.getItem(
-            SUCCESS_DAILY_DATE_KEY
-          );
-
-
-        /*
-        =================================
-        FIRST SAVE TODAY
-        =================================
-        */
-
-        if (
-          lastSuccessDailyDate !== today
-        ) {
-
-          console.log(
-            "This is today's first Exercise save."
-          );
-
-
-          /*
-            Mark today immediately.
-
-            Therefore repeated button taps
-            will NOT trigger SuccessDaily
-            multiple times.
-          */
-
-          localStorage.setItem(
-            SUCCESS_DAILY_DATE_KEY,
-            today
-          );
-
-
-          /*
-            Tell Safari:
-
-            After SaveToNotes finishes,
-            run SaveToSuccessDaily.
-          */
-
-          localStorage.setItem(
-            SUCCESS_DAILY_PENDING_KEY,
-            today
-          );
-
-
-          /*
-            Store the same Exercise summary
-            for SuccessDaily.
-          */
-
-          localStorage.setItem(
-            SUCCESS_DAILY_INPUT_KEY,
-            encoded
-          );
-
-        }
-
-
-        /*
-        =================================
-        NOT FIRST SAVE TODAY
-        =================================
-        */
-
-        else {
-
-          console.log(
-            "Exercise already recorded today → SaveToNotes only."
-          );
-
-        }
-
-
-        /*
-          ALWAYS:
-
-          Save Exercise details
-          to iPhone Notes.
-        */
-
-        window.location.href =
-          shortcutURL;
-
-      }
-    );
-
-
-  logTableContainer.appendChild(
-    saveBtn
-  );
-
-}
-
-
-// Boot
-start();
-</script>
+    function renderTable() {
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <tr>
+          <th>Date</th><th>Body Part</th><th>Exercise</th><th>Equipment</th>
+          <th>Weight</th><th>Reps</th><th>Sets</th><th>Notes</th>
+        </tr>
+        ${logs.map(e => `
+          <tr>
+            <td>${e.date || "—"}</td>
+            <td>${e.part || "—"}</td>
+            <td>${e.exercise || "—"}</td>
+            <td>${e.equipment || "—"}</td>
+            <td>${e.weight || "—"}</td>
+            <td>${e.reps || "—"}</td>
+            <td>${typeof e.sets === "number" ? formatSetsAlwaysPlural(e.sets) : (e.sets || "—")}</td>
+            <td>${e.notes || ""}</td>
+          </tr>
+        `).join("")}
+      `;
+      logTableContainer.innerHTML = "";
+      logTableContainer.appendChild(table);
+
+      const summary = logs.map(exportLineStandard).join("\n");
+      const encoded = encodeURIComponent(summary);
+      const shortcutURL = `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
+      const saveBtn = createButton("Save to iPhone Notes", () => { window.location.href = shortcutURL; });
+      logTableContainer.appendChild(saveBtn);
+    }
 
     // Boot
     start();
