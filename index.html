@@ -389,25 +389,33 @@
         const repsLabel = document.createElement("div");
         repsLabel.className = "muted";
         repsLabel.textContent = "Reduce reps:";
+
         const repsSelect = document.createElement("select");
+
         [1,2,3,4,5].forEach(n => {
           const opt = document.createElement("option");
           opt.value = n;
           opt.textContent = n;
           repsSelect.appendChild(opt);
         });
+
         const repsBtn = createButton("Apply", () => {
           const delta = -parseInt(repsSelect.value, 10);
           const base = cloneEntry(latest);
-          const modified = { ...base, reps: changeRepsValue(base.reps, delta) };
+          const modified = {
+            ...base,
+            reps: changeRepsValue(base.reps, delta)
+          };
           commitNewFromLatest(modified);
         });
+
         repsWrap.appendChild(repsLabel);
         repsWrap.appendChild(repsSelect);
         repsWrap.appendChild(repsBtn);
         row.appendChild(repsWrap);
 
         const wtWrap = document.createElement("div");
+
         const wtLabel = document.createElement("div");
         wtLabel.className = "muted";
         wtLabel.textContent = "Adjust weight and reps:";
@@ -416,7 +424,9 @@
         const weightDeltaLabel = document.createElement("div");
         weightDeltaLabel.className = "muted";
         weightDeltaLabel.textContent = "Weight Δ (-10, -5, 0, +5, +10)";
+
         const weightDeltaSelect = document.createElement("select");
+
         [-10, -5, 0, 5, 10].forEach(n => {
           const opt = document.createElement("option");
           opt.value = n;
@@ -424,13 +434,16 @@
           if (n === 0) opt.selected = true;
           weightDeltaSelect.appendChild(opt);
         });
+
         wtWrap.appendChild(weightDeltaLabel);
         wtWrap.appendChild(weightDeltaSelect);
 
         const repsDeltaLabel = document.createElement("div");
         repsDeltaLabel.className = "muted";
         repsDeltaLabel.textContent = "Reps Δ (-5..+5, default 0)";
+
         const repsDeltaSelect = document.createElement("select");
+
         for (let n = -5; n <= 5; n++) {
           const opt = document.createElement("option");
           opt.value = n;
@@ -438,6 +451,7 @@
           if (n === 0) opt.selected = true;
           repsDeltaSelect.appendChild(opt);
         }
+
         wtWrap.appendChild(repsDeltaLabel);
         wtWrap.appendChild(repsDeltaSelect);
 
@@ -445,13 +459,16 @@
           const weightDelta = parseInt(weightDeltaSelect.value, 10) || 0;
           const repsDelta = parseInt(repsDeltaSelect.value, 10) || 0;
           const base = cloneEntry(latest);
+
           const modified = {
             ...base,
             weight: adjustWeight(base.weight, weightDelta),
             reps: changeRepsValue(base.reps, repsDelta)
           };
+
           commitNewFromLatest(modified);
         });
+
         wtWrap.appendChild(applyWeightRepsBtn);
 
         row.appendChild(wtWrap);
@@ -480,11 +497,12 @@
         sets: "—",
         notes: ""
       };
+
       const div = document.createElement("div");
       div.innerHTML = "<strong>1. What did you do?</strong><br><br>";
 
       div.appendChild(createButton("Swim", () => {
-        mode = 'swim';
+        mode = "swim";
         log.part = "Swim";
         log.exercise = "—";
         log.equipment = "Pool";
@@ -492,7 +510,7 @@
       }));
 
       div.appendChild(createButton("Finger Hang", () => {
-        mode = 'finger';
+        mode = "finger";
         log.part = "Grip";
         log.exercise = "Finger Hang";
         log.equipment = "Hangboard";
@@ -501,12 +519,12 @@
       }));
 
       div.appendChild(createButton("Heavy Lift", () => {
-        mode = 'heavy';
+        mode = "heavy";
         stepBodyPart();
       }));
 
       div.appendChild(createButton("Stretch", () => {
-        mode = 'stretch';
+        mode = "stretch";
         stepStretch();
       }));
 
@@ -517,6 +535,7 @@
     function stepSwim() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Times × 30m</strong><br><br>";
+
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = "30m";
@@ -524,6 +543,7 @@
           finalizeLog();
         }));
       }
+
       renderStep(div);
     }
 
@@ -554,12 +574,14 @@
     function stepFingerHangDuration() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Finger Hang — Time</strong><br><br>";
+
       ["30s", "45s", "1 min"].forEach(label => {
         div.appendChild(createButton(label, () => {
           log.reps = label;
           stepFingerHangDepth();
         }));
       });
+
       renderStep(div);
     }
 
@@ -568,11 +590,14 @@
       div.innerHTML = "<strong>Finger Hang — Depth</strong><br><br>";
 
       const depths = ["Full", "25mm", "20mm", "15mm", "10mm"];
+
       depths.forEach(d => {
-        div.appendChild(createButton(d === "Full" ? "Full (default)" : d, () => {
-          log.notes = addOrReplaceNotePrefix(log.notes, "Depth", d);
-          stepFingerHangSets();
-        }));
+        div.appendChild(
+          createButton(d === "Full" ? "Full (default)" : d, () => {
+            log.notes = addOrReplaceNotePrefix(log.notes, "Depth", d);
+            stepFingerHangSets();
+          })
+        );
       });
 
       renderStep(div);
@@ -581,12 +606,14 @@
     function stepFingerHangSets() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Finger Hang — Sets</strong><br><br>";
+
       for (let i = 1; i <= 12; i++) {
         div.appendChild(createButton(i, () => {
           log.sets = i;
           finalizeLog();
         }));
       }
+
       renderStep(div);
     }
 
@@ -629,21 +656,26 @@
     function stepBodyPart() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Select Body Part</strong><br><br>";
+
       div.appendChild(createButton("Chest", () => {
         log.part = "Chest";
         stepChestEquipment();
       }));
+
       div.appendChild(createButton("Back", () => {
         log.part = "Back";
         stepBackType();
       }));
+
       div.appendChild(createButton("Leg", () => {
         stepLegType();
       }));
+
       div.appendChild(createButton("Biceps", () => {
         log.part = "Biceps";
         stepBicepsEquipment();
       }));
+
       div.appendChild(createButton("Core", () => {
         log.part = "Core";
         stepCoreExercise();
@@ -655,31 +687,46 @@
     function stepBackType() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Back - Type</strong><br><br>";
+
       div.appendChild(createButton("Machine", () => {
         stepBackGrip("Machine");
       }));
+
       div.appendChild(createButton("Seat Row", () => {
         stepBackGrip("Seat Row");
       }));
+
       div.appendChild(createButton("Pull Up", () => {
         stepPullUp();
       }));
+
       renderStep(div);
     }
 
     function stepBackGrip(equipment) {
       const div = document.createElement("div");
       div.innerHTML = `<strong>${equipment} - Grip Type</strong><br><br>`;
+
       div.appendChild(createButton("Normal", () => {
         log.exercise = `${equipment} - Normal`;
         log.equipment = equipment;
-        stepWeight(["35kg", "42kg", "49kg", "56kg", "63kg", "70kg", "77kg", "84kg", "91kg"]);
+
+        stepWeight([
+          "35kg", "42kg", "49kg", "56kg", "63kg",
+          "70kg", "77kg", "84kg", "91kg"
+        ]);
       }));
+
       div.appendChild(createButton("Close Grip", () => {
         log.exercise = `${equipment} - Close Grip`;
         log.equipment = equipment;
-        stepWeight(["35kg", "42kg", "49kg", "56kg", "63kg", "70kg", "77kg", "84kg", "91kg"]);
+
+        stepWeight([
+          "35kg", "42kg", "49kg", "56kg", "63kg",
+          "70kg", "77kg", "84kg", "91kg"
+        ]);
       }));
+
       renderStep(div);
     }
 
@@ -693,24 +740,28 @@
     function stepPullUpReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Pull Up — Reps</strong><br><br>";
+
       for (let i = 1; i <= 25; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = `${i} reps`;
           stepPullUpSets();
         }));
       }
+
       renderStep(div);
     }
 
     function stepPullUpSets() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Pull Up — Sets</strong><br><br>";
+
       for (let i = 1; i <= 10; i++) {
         div.appendChild(createButton(i, () => {
           log.sets = `${i} sets`;
           finalizeLog();
         }));
       }
+
       renderStep(div);
     }
 
@@ -721,53 +772,63 @@
       div.appendChild(createButton("Dumbbell", () => {
         const areaDiv = document.createElement("div");
         areaDiv.innerHTML = "<strong>Dumbbell Exercise</strong><br><br>";
+
         areaDiv.appendChild(createButton("Flat Dumbbell Press", () => {
           log.exercise = "Flat Dumbbell Press";
           log.equipment = "Dumbbell";
           stepWeight(generateRange(10, 30, 2, "kg"));
         }));
+
         areaDiv.appendChild(createButton("Incline Dumbbell Press", () => {
           log.exercise = "Incline Dumbbell Press";
           log.equipment = "Dumbbell";
           stepWeight(generateRange(10, 30, 2, "kg"));
         }));
+
         areaDiv.appendChild(createButton("Dumbbell Fly", () => {
           log.exercise = "Dumbbell Fly";
           log.equipment = "Dumbbell";
           stepWeight(generateRange(10, 30, 2, "kg"));
         }));
+
         renderStep(areaDiv);
       }));
 
       div.appendChild(createButton("Smith Machine", () => {
         const smithDiv = document.createElement("div");
         smithDiv.innerHTML = "<strong>Smith Press</strong><br><br>";
+
         smithDiv.appendChild(createButton("Flat Smith Press", () => {
           log.exercise = "Flat Smith Press";
           log.equipment = "Smith Machine";
           stepWeight(generateRange(20, 100, 10, "kg"));
         }));
+
         smithDiv.appendChild(createButton("Incline Smith Press", () => {
           log.exercise = "Incline Smith Press";
           log.equipment = "Smith Machine";
           stepWeight(generateRange(20, 100, 10, "kg"));
         }));
+
         renderStep(smithDiv);
       }));
 
       div.appendChild(createButton("Cable Machine", () => {
         const cableDiv = document.createElement("div");
         cableDiv.innerHTML = "<strong>Cable Chest</strong><br><br>";
+
         cableDiv.appendChild(createButton("Cable Chest Press", () => {
           log.exercise = "Cable Chest Press";
           log.equipment = "Cable Machine";
           stepWeight(getChestWeights("Cable Machine"));
         }));
+
         cableDiv.appendChild(createButton("Cable Fly", () => {
           log.exercise = "Cable Fly";
           log.equipment = "Cable Machine";
           stepWeight(getChestWeights("Cable Machine"));
         }));
+
         renderStep(cableDiv);
       }));
 
@@ -775,37 +836,29 @@
         const machineDiv = document.createElement("div");
         machineDiv.innerHTML = "<strong>Machine Chest</strong><br><br>";
 
+        const machineWeights = [
+          "4.5kg", "9.1kg", "13.6kg", "18.1kg", "22.7kg", "27.2kg",
+          "31.8kg", "36.3kg", "40.8kg", "45.4kg", "49.9kg", "54.4kg",
+          "59.0kg", "63.5kg", "68.0kg", "72.6kg", "77.1kg", "81.6kg",
+          "86.2kg", "90.7kg", "95.3kg", "99.8kg", "104.3kg", "108.9kg"
+        ];
+
         machineDiv.appendChild(createButton("Chest Press", () => {
           log.exercise = "Chest Press";
           log.equipment = "Machine";
-          stepWeight([
-            "4.5kg", "9.1kg", "13.6kg", "18.1kg", "22.7kg", "27.2kg",
-            "31.8kg", "36.3kg", "40.8kg", "45.4kg", "49.9kg", "54.4kg",
-            "59.0kg", "63.5kg", "68.0kg", "72.6kg", "77.1kg", "81.6kg",
-            "86.2kg", "90.7kg", "95.3kg", "99.8kg", "104.3kg", "108.9kg"
-          ]);
+          stepWeight(machineWeights);
         }));
 
         machineDiv.appendChild(createButton("Incline Chest Press", () => {
           log.exercise = "Incline Chest Press";
           log.equipment = "Machine";
-          stepWeight([
-            "4.5kg", "9.1kg", "13.6kg", "18.1kg", "22.7kg", "27.2kg",
-            "31.8kg", "36.3kg", "40.8kg", "45.4kg", "49.9kg", "54.4kg",
-            "59.0kg", "63.5kg", "68.0kg", "72.6kg", "77.1kg", "81.6kg",
-            "86.2kg", "90.7kg", "95.3kg", "99.8kg", "104.3kg", "108.9kg"
-          ]);
+          stepWeight(machineWeights);
         }));
 
         machineDiv.appendChild(createButton("Machine Fly", () => {
           log.exercise = "Machine Fly";
           log.equipment = "Machine";
-          stepWeight([
-            "4.5kg", "9.1kg", "13.6kg", "18.1kg", "22.7kg", "27.2kg",
-            "31.8kg", "36.3kg", "40.8kg", "45.4kg", "49.9kg", "54.4kg",
-            "59.0kg", "63.5kg", "68.0kg", "72.6kg", "77.1kg", "81.6kg",
-            "86.2kg", "90.7kg", "95.3kg", "99.8kg", "104.3kg", "108.9kg"
-          ]);
+          stepWeight(machineWeights);
         }));
 
         renderStep(machineDiv);
@@ -817,17 +870,19 @@
     function getChestWeights(equipment) {
       if (equipment === "Cable Machine") {
         return [
-          "1.1kg", "3.4kg", "5.7kg", "9.0kg", "10.2kg", "12.5kg", "14.7kg",
-          "17.0kg", "19.3kg", "21.6kg", "23.8kg", "26.2kg", "28.4kg", "30.6kg", "32.9kg"
+          "1.1kg", "3.4kg", "5.7kg", "9.0kg", "10.2kg",
+          "12.5kg", "14.7kg", "17.0kg", "19.3kg", "21.6kg",
+          "23.8kg", "26.2kg", "28.4kg", "30.6kg", "32.9kg"
         ];
-      } else {
-        return generateRange(10, 30, 2, "kg");
       }
+
+      return generateRange(10, 30, 2, "kg");
     }
 
     function stepLegType() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Leg - Type</strong><br><br>";
+
       div.appendChild(createButton("Stretch", () => {
         log.part = "Leg";
         log.exercise = "Stretch";
@@ -837,27 +892,32 @@
         log.sets = "—";
         finalizeLog();
       }));
+
       div.appendChild(createButton("Exercise", () => {
         stepLegPart();
       }));
+
       renderStep(div);
     }
 
     function stepLegPart() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Leg - Which part?</strong><br><br>";
+
       div.appendChild(createButton("Gluteus", () => {
         log.part = "Glutes";
         log.exercise = "Gluteus";
         log.equipment = "Dumbbell";
         stepWeight(generateRange(2, 20, 2, "kg"));
       }));
+
       div.appendChild(createButton("Quadriceps", () => {
         log.part = "Legs";
         log.exercise = "Quadriceps";
         log.equipment = "Dumbbell";
         stepWeight(generateRange(2, 20, 2, "kg"));
       }));
+
       renderStep(div);
     }
 
@@ -935,6 +995,7 @@
       input.style.width = "220px";
 
       const unitSelect = document.createElement("select");
+
       ["kg", "lb"].forEach(unit => {
         const opt = document.createElement("option");
         opt.value = unit;
@@ -944,12 +1005,14 @@
 
       const addBtn = createButton("Use custom weight", () => {
         const raw = input.value.trim();
+
         if (!raw) {
           alert("Please enter a weight.");
           return;
         }
 
         const num = parseFloat(raw);
+
         if (isNaN(num) || num < 0) {
           alert("Please enter a valid weight.");
           return;
@@ -969,6 +1032,7 @@
       row.appendChild(input);
       row.appendChild(unitSelect);
       row.appendChild(addBtn);
+
       customWrap.appendChild(row);
       div.appendChild(customWrap);
 
@@ -987,9 +1051,11 @@
 
       const tutLabel = document.createElement("div");
       tutLabel.textContent = "TUT set (103 / 101)";
+
       const tutDisplay = document.createElement("div");
       tutDisplay.className = "muted";
       tutDisplay.textContent = "Selected: 103 (default)";
+
       div.appendChild(tutLabel);
       div.appendChild(tutDisplay);
 
@@ -997,6 +1063,7 @@
         selectedTut = "103";
         tutDisplay.textContent = "Selected: 103";
       }));
+
       div.appendChild(createButton("101", () => {
         selectedTut = "101";
         tutDisplay.textContent = "Selected: 101";
@@ -1005,9 +1072,11 @@
       const dropLabel = document.createElement("div");
       dropLabel.style.marginTop = "20px";
       dropLabel.textContent = "Drop set (Yes / No)";
+
       const dropDisplay = document.createElement("div");
       dropDisplay.className = "muted";
       dropDisplay.textContent = "Selected: No (default)";
+
       div.appendChild(dropLabel);
       div.appendChild(dropDisplay);
 
@@ -1015,6 +1084,7 @@
         selectedDrop = "Yes";
         dropDisplay.textContent = "Selected: Yes";
       }));
+
       div.appendChild(createButton("No", () => {
         selectedDrop = "No";
         dropDisplay.textContent = "Selected: No";
@@ -1022,16 +1092,20 @@
 
       const saveBtn = createButton("Save Set", () => {
         const extra = `TUT:${selectedTut}, Drop:${selectedDrop}`;
+
         if (log.notes && log.notes.length > 0) {
           log.notes += " | " + extra;
         } else {
           log.notes = extra;
         }
+
         if (!log.sets || log.sets === "—") {
           log.sets = "1 sets";
         }
+
         finalizeLog();
       });
+
       saveBtn.style.display = "block";
       saveBtn.style.marginTop = "30px";
       div.appendChild(saveBtn);
@@ -1042,10 +1116,12 @@
     function stepReps() {
       const div = document.createElement("div");
       div.innerHTML = "<strong>Reps</strong><br><br>";
+
       for (let i = 4; i <= 15; i++) {
         div.appendChild(createButton(i, () => {
           log.reps = `${i} reps`;
-          if (mode === 'heavy') {
+
+          if (mode === "heavy") {
             log.sets = "1 sets";
             stepHeavyExtras();
           } else {
@@ -1053,6 +1129,7 @@
           }
         }));
       }
+
       renderStep(div);
     }
 
@@ -1076,6 +1153,7 @@
 
       let repsOut = "";
       const repsNum = parseReps(e.reps);
+
       if (repsNum != null) {
         repsOut = `${repsNum}reps`;
       } else {
@@ -1083,22 +1161,34 @@
       }
 
       const nsets = parseSets(e.sets);
-      const setsOut = nsets != null ? `${nsets} sets` : (e.sets || "");
+      const setsOut = nsets != null
+        ? `${nsets} sets`
+        : (e.sets || "");
 
       const notes = (e.notes || "").trim();
+
       if (notes) {
         return `${date}, ${part}, ${exercise}, ${equipment}, ${weight}, ${repsOut}, ${setsOut}, ${notes}`;
       }
+
       return `${date}, ${part}, ${exercise}, ${equipment}, ${weight}, ${repsOut}, ${setsOut}`;
     }
 
     function renderTable() {
       const table = document.createElement("table");
+
       table.innerHTML = `
         <tr>
-          <th>Date</th><th>Body Part</th><th>Exercise</th><th>Equipment</th>
-          <th>Weight</th><th>Reps</th><th>Sets</th><th>Notes</th>
+          <th>Date</th>
+          <th>Body Part</th>
+          <th>Exercise</th>
+          <th>Equipment</th>
+          <th>Weight</th>
+          <th>Reps</th>
+          <th>Sets</th>
+          <th>Notes</th>
         </tr>
+
         ${logs.map(e => `
           <tr>
             <td>${e.date || "—"}</td>
@@ -1107,18 +1197,41 @@
             <td>${e.equipment || "—"}</td>
             <td>${e.weight || "—"}</td>
             <td>${e.reps || "—"}</td>
-            <td>${typeof e.sets === "number" ? formatSetsAlwaysPlural(e.sets) : (e.sets || "—")}</td>
+            <td>
+              ${
+                typeof e.sets === "number"
+                  ? formatSetsAlwaysPlural(e.sets)
+                  : (e.sets || "—")
+              }
+            </td>
             <td>${e.notes || ""}</td>
           </tr>
         `).join("")}
       `;
+
       logTableContainer.innerHTML = "";
       logTableContainer.appendChild(table);
 
-      const summary = logs.map(exportLineStandard).join("\n");
+      const summary = logs
+        .map(exportLineStandard)
+        .join("\n");
+
       const encoded = encodeURIComponent(summary);
-      const shortcutURL = `shortcuts://run-shortcut?name=SaveToNotes&input=${encoded}`;
-      const saveBtn = createButton("Save to iPhone Notes", () => { window.location.href = shortcutURL; });
+
+      /*
+        Run Apple Shortcut:
+        SaveToSuccessDaily
+      */
+      const shortcutURL =
+        `shortcuts://run-shortcut?name=SaveToSuccessDaily&input=${encoded}`;
+
+      const saveBtn = createButton(
+        "Save to SuccessDaily",
+        () => {
+          window.location.href = shortcutURL;
+        }
+      );
+
       logTableContainer.appendChild(saveBtn);
     }
 
