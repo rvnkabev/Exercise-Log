@@ -268,14 +268,17 @@
       Run iPhone Shortcut:
       SaveToSuccessDaily
     */
-    function runSaveToSuccessDaily() {
-      const shortcutName = "SaveToSuccessDaily";
-      const text = `${getToday()}, Exercise`;
-      const shortcutURL =
-        `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}`;
+function runSaveToSuccessDaily() {
+  const shortcutName = "SaveToSuccessDaily";
+  const text = `${getToday()}, Exercise`;
 
-      window.location.href = shortcutURL;
-    }
+  const shortcutURL =
+    `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}` +
+    `&input=text` +
+    `&text=${encodeURIComponent(text)}`;
+
+  window.location.href = shortcutURL;
+}
 
 
     /*
