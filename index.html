@@ -1299,6 +1299,7 @@ function runSaveToSuccessDaily() {
           () => {
 
             mode = 'heavy';
+            log.sets = 1;
 
             stepBodyPart();
           }
@@ -1312,6 +1313,7 @@ function runSaveToSuccessDaily() {
           () => {
 
             mode = 'stretch';
+            log.sets = 1;
 
             stepStretch();
           }
@@ -1497,7 +1499,7 @@ function runSaveToSuccessDaily() {
                   d
                 );
 
-              stepFingerHangSets();
+              finalizeLog();
             }
           )
         );
@@ -1861,7 +1863,7 @@ function runSaveToSuccessDaily() {
               log.reps =
                 `${i} reps`;
 
-              stepPullUpSets();
+              finalizeLog();
             }
           )
         );
@@ -2318,7 +2320,7 @@ function runSaveToSuccessDaily() {
               "—";
 
             log.sets =
-              "—";
+              1;
 
             finalizeLog();
           }
